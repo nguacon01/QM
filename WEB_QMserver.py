@@ -1,0 +1,259 @@
+#!/usr/bin/env python
+# encoding: utf-8
+"""
+mini WEB server for QueueManager
+
+see http://bottle.paws.de/docs/dev/index.html
+
+Created by Marc-Andre on 2015-4-14 based on an early version 2011-01-26.
+"""
+
+# ##### CONFIGURATION ###########
+#     # Please parametrize the absolute path of your QM folder 
+# QM_FOLDER = "/Volumes/biak_1ToHD/QM/QM"
+#     # debug mode, should not be active in production mode
+# debug = True
+#     # the port on which the server is serving
+# The_Port = 8000
+#     # if True, the kill button will be present (to kill the running job)
+#     # NOT FULLY DEBUGGED - use at your own risks
+# Licence_to_kill = True
+# ##### END OF CONFIGURATION ###########
+
+
+import bottle as b
+from bottle import static_file
+from datetime import datetime, timedelta
+from xml.sax import handler, make_parser
+import glob
+import os
+import os.path as op
+import sys
+from defaultConfigParser import defaultConfigParser
+
+# read config
+configfile = "QMserv.cfg"
+config = defaultConfigParser()
+config.readfp(open(configfile))
+QM_FOLDER = config.get( "QMServer", "QM_FOLDER")
+ROOT = QM_FOLDER
+debug = config.getboolean( "WEB_QMserver", "Debug")
+Host = config.get( "WEB_QMserver", "Host")
+The_Port = config.getint( "WEB_QMserver", "The_Port", 8000)
+Licence_to_kill = config.getboolean( "WEB_QMserver", "Licence_to_kill", False)
+
+###### Utilities
+class AnalInfo(handler.ContentHandler):
+    "used to parse info.xml files"
+    def __init__(self,job):
+        self.job = job
+    def startElement(self, name, attrs):
+        if name=="NbProcessors":
+            self.job.NbProcessors=attrs.get("value")
+        if name=="E-mail":
+            self.job.E_mail=attrs.get("value")
+        if name=="Type":
+            self.job.Type=attrs.get("value")
+class Job(object):
+    """this class holds every thing to describe a job"""
+    def __init__(self,loc,name):
+        self.loc = loc      # QM_xJobs
+        self.name = name    # the job directory name
+        self.NbProcessors = 1
+        self.E_mail = "unknown"
+        self.Type ="urQRd"
+        self.parsexml()
+        self.date = os.stat(self.myxml) [9]   # will be used for sorting - myxml stronger than url
+        self.nicedate = datetime.fromtimestamp(self.date).strftime("%d %b %Y %H:%M:%S")
+        self.timestarted = time.time()
+    @property
+    def url(self):
+        return op.join(self.loc,self.name)
+        @property
+    def started(self):
+        return self.nicedate
+    @property
+    def myxml(self):
+        return op.join(self.loc,self.name,"infos.xml")
+    def parsexml(self):
+        """    analyses info.xml files    """
+        parser = make_parser()
+        handler = AnalInfo(self)
+        parser.setContentHandler(handler)
+        try:
+            parser.parse(self.myxml)
+        except:
+            pass
+    @property
+    def mylog(self):
+        return op.join(self.loc,self.name,"NPKDosy0.log")
+    def avancement(self):
+        av = (time.time-self.timestarted)/30  # assumes 30 sec jobs
+        return "%.f"%(100.0*av)
+    def time(self):
+        """   analyse log file, return elapsed time as a string """
+        import re
+        tt = "undefined"
+        try:
+            for l in open(self.mylog,'r').readlines():
+                m = re.search("time:\s*(\d+)",l)   #
+                if m:  tt = m.group(1)
+        except:
+            pass
+        return tt
+        
+    @property
+    def myparam(self):
+        return op.join(self.loc,self.name,"param.gtb")
+    @property
+    def size(self):
+        tt = "undefined"
+        try:
+            for line in open(self.myparam,'r').readlines():
+                infos = line.split("=")
+                if len(infos) >= 2 and infos[0] == "col_list":
+                    col_list = eval(infos[1])
+            tt = "%d"%len(col_list)
+        except:
+            pass
+        return tt
+def job_list(dire, sorted=True):
+    " returns a list with all jobs in dire"
+    ll = []
+    dd = os.path.join(ROOT,dire)
+    for i in os.listdir(dd):
+        if os.path.isdir(os.path.join(dd,i)) :
+            ll.append( Job(dd,i) )
+    if sorted:
+        ll.sort(reverse=True, key=lambda j: j.date)   # sort by reversed date
+    return ll
+
+def stat(dire):
+    "compute usage statitics"
+    from collections import defaultdict
+    jobs = job_list(dire)
+    cpu_users = defaultdict(int)    # collect cpu time
+    job_users = defaultdict(int)    # collect nb of jobs
+    for j in jobs:
+        if j.E_mail == "":
+            j.E_mail = "Anonymous"
+        job_users[j.E_mail] += 1
+        try:
+            cpu_users[j.E_mail] += int(j.time())
+        except ValueError:
+            pass
+    for u in cpu_users.keys():
+        print u, job_users[u], cpu_users[u]
+    return (job_users, cpu_users)
+
+###### pages
+# route defines URL
+# view defines template file to use
+
+@b.route('/static/:filename#.*#')
+def static(filename):
+    return static_file(filename, root='views/static/')
+    
+@b.route('/test')
+def test():
+    id = b.request.GET['id']
+    q = b.request.query_string
+    return q, "\nId = ",id
+    
+@b.route('/')
+@b.route('/QM')
+@b.route('/QM/')
+@b.view('QM')
+def QM():
+    "returns the front page of QM helper"
+    running=0
+    licence_to_kill = Licence_to_kill
+    now = datetime.now().strftime("%a, %d %b %Y %H:%M:%S")
+    done = job_list('QM_dJobs')
+    waiting = job_list('QM_qJobs')
+    r = job_list('QM_Jobs')
+    if r:
+        running = r[0]
+    return locals()
+
+@b.route()
+def kill(fil="None", conf=False):  # implicite route : /kill/job(/True)  - third field is required for validation
+    queue = "QM_Jobs"
+    if debug: print "kill - %s - %s - %s -"%(queue, fil, conf)
+    if conf:
+        if debug:
+            print "killed %s"%fil
+            print "kill `ps | awk '/NPKDosy/ && ! /ps/ && // {print $1}'`"
+        os.system("kill `ps | awk '/NPKDosy/ && ! /ps/ && // {print $1}'`")
+        if debug: print op.join(ROOT,queue,fil,'ldir*')
+        for i in glob.glob( op.join(ROOT,queue,fil,'ldir*') ):
+            os.system("touch %s/dosy.gs2"%i)    # simulate end of processing
+    return b.template("Confirm", queue=queue, fil=fil, conf=conf)
+
+@b.route()
+def delete(queue="here", fil="None", conf=False):  # implicite route : /delete/here/job(/True)  - third field is required for validation
+    "used to delete a job from Done Jobs list"
+    import shutil
+    if debug: print "delete - %s - %s - %s -"%(queue, fil, conf)
+    d = op.join(ROOT,queue,fil)
+    print d
+    if op.isdir(d):
+        if conf:
+            if debug:
+                print "deleting %s"%d
+            shutil.rmtree(d)
+        return b.template("Confirm", queue=queue, fil=fil, conf=conf)
+    else:
+        return b.HTTPError(404, "Job %s not found"%fil)
+
+@b.route('/download/:fil')
+def down(fil):
+    """used to force download of zip files"""
+    d = op.join(ROOT,'QM_dJobs',fil,fil+".zip")
+    if op.isfile(d):
+        if debug: print d
+        return b.static_file(d, root='/', download=fil+".zip")
+    else:
+        return "File %s not found"%d
+
+@b.route(':name#.+/$#')
+@b.view('QM_dJobs')
+def test(name):
+    "returns the content of directories"
+    import os.path as op
+    now = datetime.now().strftime("%a, %d %b %Y %H:%M:%S")
+    fich = []
+    dire = []
+    base = op.join(ROOT,name)
+    lb = len(base)
+    path = op.join(base,"*")
+    for f in glob.glob(path):
+        if op.isfile(f):
+            fich.append(f[lb:])
+        if op.isdir(f):
+            dire.append(f[lb:])
+    return locals()     # all local variables can now be used in the template
+
+@b.route()
+@b.view('stats')
+def stats():
+    print "coucou"
+    now = datetime.now().strftime("%a, %d %b %Y %H:%M:%S")
+    (job_users, cpu_users) = stat("QM_dJobs")
+    time_users = {u:timedelta(seconds=cpu_users[u]) for u in cpu_users.keys() }
+    cputotal = sum(cpu_users.values())
+    timetotal = timedelta(seconds=cputotal)
+    jobtotal = sum(job_users.values())
+    meanjob = timedelta(seconds=int(float(cputotal)/jobtotal))
+    return locals()
+
+@b.route(':file#.*#')
+def fichier(file):
+    "serve all other files as static files"
+    if debug: print file
+    return b.static_file(file, root=ROOT)
+
+
+b.debug(debug)
+b.run(host=Host, port=The_Port, reloader=debug)
+
