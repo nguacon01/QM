@@ -6,6 +6,9 @@ mini WEB server for QueueManager
 see http://bottle.paws.de/docs/dev/index.html
 
 Created by Marc-Andre on 2015-4-14 based on an early version 2011-01-26.
+
+This code is Licenced under the Cecill licence code
+
 """
 
 # ##### CONFIGURATION ###########

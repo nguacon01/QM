@@ -27,6 +27,7 @@ prgm runs inside the job folder, which may contain any associated files
 Queue Manager itself is parametrized with QMserv.cfg file
 (as well as the associated WEB_QMserver.py which allows to monitor what is going on)
 
+This code is Licenced under the Cecill licence code
 """
 
 import os
