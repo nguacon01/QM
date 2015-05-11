@@ -62,6 +62,16 @@ from datetime import datetime, timedelta
 
 
 __version__ = 0.1
+
+def start_logger():
+    "configurate and start logger"
+    global logger
+    # create logger
+    logging.basicConfig(level=logging.DEBUG,
+        format="%(asctime)s %(levelname)s %(message)s", filename="QueueManager.log", filemode="w")
+    #limit size, and add rotate
+#    logger.handlers.RotatingFileHandler(LOG_FILENAME, maxBytes=1024, backupCount=10)
+
 class XmlInfo(handler.ContentHandler):
     "used to parse infos.xml files"
     def __init__(self, job, keylist):
@@ -148,7 +158,7 @@ class Job(object):
         try:
             retcode = subprocess.call(Script, shell=True)
         except OSError, e:
-            print "Execution failed:", e
+            logging.error("Execution failed:"+ str(e))
             retcode = -1
         return retcode
     def __repr__(self):
@@ -159,12 +169,23 @@ class Job(object):
             except:
                 pass
         return "\n".join(p)
-def job_list(path, do_sort=True):
+def job_list(path, error, do_sort=True):
     " returns a list with all jobs in path"
     ll = []
     for i in os.listdir(path):
         if os.path.isdir(os.path.join(path,i)) :
-            ll.append( Job(path,i) )
+            try:
+                JJ = Job(path,i)
+            except:
+                msg = "Job invalid: "+os.path.join(path,i)
+                logging.warning(msg)
+                with open(os.path.join(path,i, "process.log"), "w") as F:
+                    F.write(msg)
+                
+                os.rename(os.path.join(path,i), os.path.join(error,i) )
+                logging.warning("Job %s moved to %s"%(os.path.join(path,i),error) )
+            else:
+                ll.append( JJ )
     if do_sort:
         ll.sort(reverse=True, key=lambda j: j.date)   # sort by reversed date
     return ll
@@ -179,7 +200,7 @@ class QM(object):
     everything is maintained in a self.joblist lists - top job is the first to be run
     """
     def __init__(self, configfile):
-        print "init"
+        logging.info("QueueManager Initialization")
         # read config
         self.configfile = configfile
         self.config = SafeConfigParser()
@@ -197,6 +218,8 @@ class QM(object):
         Job.job_type = self.job_type
         self.ROOT = self.QM_FOLDER
         self.debug = self.config.getboolean( "QMServer", "Debug")
+        if self.debug:
+            logging.getLogger().setLevel(logging.DEBUG)
         self.qJobs = op.join(self.QM_FOLDER,"QM_qJobs")
         self.Jobs = op.join(self.QM_FOLDER,"QM_Jobs")
         self.dJobs = op.join(self.QM_FOLDER,"QM_dJobs")
@@ -204,7 +227,7 @@ class QM(object):
         self.nap_time = 1.0
 
     def run(self):
-        "the way to start to QM endless loo"
+        "the way to start to QM endless loop"
         while True :
             next_one = self.wait_for_job()
             self.run_job(next_one)
@@ -219,7 +242,7 @@ class QM(object):
         """
         self.queue_jobs = []
         while len(self.queue_jobs) == 0:
-            self.queue_jobs = job_list(self.qJobs)
+            self.queue_jobs = job_list(self.qJobs, self.dJobs)
             self.nap()
         next_job = self.queue_jobs.pop()
         return next_job
@@ -229,7 +252,7 @@ class QM(object):
         method that deals with moving job to do around and running  job.script 
         maybe also send e-mail once the job is done ... 
         """
-        print "###########\nStarting :\n", job
+        logging.info("Starting %s\n%s"%(job.name,repr(job)) )
         to_qJobs = op.join(self.qJobs, job.name)
         to_Jobs = op.join(self.Jobs, job.name)
         to_dJobs = op.join(self.dJobs, job.name)
@@ -239,10 +262,10 @@ class QM(object):
         os.chdir(to_Jobs)
         if job.script == "unknown":
             job.script = 'echo no-script; pwd; sleep 10; ls -l'
-            print "XXXX   undefined script in info file   XXXX"
+            logging.warning("undefined script in info file")
         if int(job.nb_proc) > int(self.MaxNbProcessors):
-            msg = "###########\nNb of processors limited to %d\n###########\n"%int(self.MaxNbProcessors)
-            print msg
+            msg = "Nb of processors limited to %d"%int(self.MaxNbProcessors)
+            logging.warning( msg )
             with open("process.log","w") as F:
                 F.write(msg)
             job.nb_proc = self.MaxNbProcessors
@@ -250,11 +273,14 @@ class QM(object):
         job.run()
         os.chdir(self.qJobs)
         os.rename(to_Jobs, to_dJobs)
-        print "###########\nFinished:\n"
+        logging.info( "Job Finished")
 
 if  __name__ == '__main__':
-    q = QM("QMserv.cfg")
-    queue_jobs = job_list(q.qJobs)
-    while queue_jobs:
-        print queue_jobs.pop()
+    start_logger()
+    q =  QM("QMserv.cfg")
+    queue_jobs = job_list(q.qJobs, q.dJobs)
+    if q.debug:
+        logging.debug( "Dump of queue at start-up" )
+        while queue_jobs:
+            logging.debug( repr(queue_jobs.pop()) )
     q.run()
