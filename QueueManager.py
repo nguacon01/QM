@@ -12,14 +12,32 @@ QM_qJobs    queuing jobs
 QM_Jobs     running jobs
 QM_dJobs    done jobs
 
-jobs are a folder containing a infos.xml file and all related information
+jobs are folders, they contain all the need information to run code.
+Minimum job is
+    - a info file, either in xml or cfg format (defined in QMserv.cfg)
+    - a script to launch
+but you can put in there everything you need (data, code, etc...)
 
-minimal infos.xml is :
+The info file should contain :
+
+typical xml is:
 <PARAMETER>
-    <NbProcessors value="12"/>
-    <E-mail value="me@gmail.com"/>
-    <Script value="python process.py param1 param2"/>
+    <nb_proc value="12"/>
+    <e-mail value="me@gmail.com"/>
+    <script value="python process.py param1 param2"/>
+    <info value="some description of the job"/>
 </PARAMETER>
+
+typical cfg is:
+[QMOptions]
+nb_proc : 12
+e_mail : me@gmail.com
+info : some description of the job
+script : python process.py param1 param2
+
+The only required entry is script
+You can use this file for your own entries
+
 
 pool QM_qJobs and launch associated prgm
 prgm runs inside the job folder, which may contain any associated files
@@ -34,7 +52,7 @@ import os
 import os.path as op
 import subprocess
 import time
-import sys, string
+import sys
 import glob
 
 import logging
@@ -44,19 +62,7 @@ from datetime import datetime, timedelta
 
 
 __version__ = 0.1
-class param(object):
-    "This class is a generic holder for parameters"
-    def report(self):
-        "print a formatted report"
-        print "------------ processing parameters ------------------"
-        for i in dir(self):
-            if not i.startswith('_'):
-                v = getattr(self,i)
-                if not callable(v):
-                    print i, ' :', v
-        print "-----------------------------------------------------"
-
-class AnalInfo(handler.ContentHandler):
+class XmlInfo(handler.ContentHandler):
     "used to parse infos.xml files"
     def __init__(self, job, keylist):
         self.job = job
@@ -65,32 +71,38 @@ class AnalInfo(handler.ContentHandler):
         if name in self.keylist:
             value = attrs.get("value")
             setattr(self.job, name, value)
-class job(object):
-    """
-    class that handles one job
-    """
-    def __init__(self, path):
-        "creates one empty jobs with located in path"
-    def run(self):
-        os.system(self.script)
-
+# class job(object):
+#     """
+#     class that handles one job
+#     """
+#     def __init__(self, path, name):
+#         "creates one empty jobs with located in path"
+#     def run(self):
+#         os.system(self.script)
+# 
 class Job(object):
     """this class holds every thing to describe a job"""
+    job_type = None  # these entries will be overwriten at start-up
+    job_file = None
     def __init__(self, loc, name):
         self.loc = loc      # QM_xJobs
         self.name = name    # the job directory name
-        self.date = os.stat(self.myxml) [8]   # will be used for sorting - myxml stronger than url
+        self.date = os.stat(self.myjobfile) [8]   # will be used for sorting - myjobfile stronger than url
         self.nicedate = datetime.fromtimestamp(self.date).strftime("%d %b %Y %H:%M:%S")
         self.timestarted = time.time()
         # the following will be modified by parsexml
-        self.NbProcessors = 1
-        self.E_mail = "unknown"
-        self.Type = "unknown"
-        self.Script = "unknown"
+        self.nb_proc = 1
+        self.e_mail = "unknown"
+        self.info = "unknown"
+        self.script = "unknown"
         self.priority = 0
-        keylist = ["NbProcessors", "E_mail", "Type", "Script"]  # adapt here
+        keylist = ["nb_proc", "e_mail", "info", "script", "priority"]  # adapt here
         self.keylist = keylist
-        self.parsexml(keylist)
+        # and get them
+        if self.job_type == "xml":
+            self.parsexml()
+        if self.job_type == "cfg":
+            self.parsecfg()
     @property
     def url(self):
         return op.join(self.loc,self.name)
@@ -98,20 +110,25 @@ class Job(object):
     def started(self):
         return self.nicedate
     @property
-    def myxml(self):
-        return op.join(self.loc,self.name,"infos.xml")
-    def parsexml(self, keylist):
-        """    analyses info.xml files    """
+    def myjobfile(self):
+        return op.join(self.loc, self.name, self.job_file)
+    def parsecfg(self):
+        """    load info.cfg files    """
+        config = SafeConfigParser()
+        config.readfp( open(self.myjobfile) )
+        for k in self.keylist:
+            if config.has_option("QMOptions", k):
+                val = config.get("QMOptions", k)
+                setattr(self, k, val)
+    def parsexml(self):
+        """    load info.xml files    """
         parser = make_parser()
-        handler = AnalInfo(self, self.keylist)     # inject values inside current Job
-        parser.setContentHandler(handler)
-        try:
-            parser.parse(self.myxml)
-        except:
-             print "ERROR in reading infos.xml for job", self.name
+        handle = XmlInfo(self, self.keylist)     # inject values inside current Job
+        parser.setContentHandler(handle)
+        parser.parse(self.myjobfile)
     @property
     def mylog(self):
-        return op.join(self.loc,self.name,"NPKDosy0.log")
+        return op.join(self.loc, self.name, "process.log")
     def avancement(self):
         av = (time.time-self.timestarted)/30  # assumes 30 sec jobs
         return "%.f"%(100.0*av)
@@ -120,42 +137,35 @@ class Job(object):
         import re
         tt = "undefined"
         try:
-            for l in open(self.mylog,'r').readlines():
+            for l in open(self.mylog, 'r').readlines():
                 m = re.search("time:\s*(\d+)",l)   #
                 if m:  tt = m.group(1)
         except:
             pass
         return tt
-    @property
-    def myparam(self):
-        return op.join(self.loc,self.name,"param.gtb")
-    @property
-    def size(self):
-        tt = "undefined"
+    def run(self):
+        Script = self.script+">> process.log 2>&1"
         try:
-            for line in open(self.myparam,'r').readlines():
-                infos = line.split("=")
-                if len(infos) >= 2 and infos[0] == "col_list":
-                    col_list = eval(infos[1])
-            tt = "%d"%len(col_list)
-        except:
-            pass
-        return tt
+            retcode = subprocess.call(Script, shell=True)
+        except OSError, e:
+            print "Execution failed:", e
+            retcode = -1
+        return retcode
     def __repr__(self):
         p = ["JOB  %s"%self.name]
-        for k in ["nicedate", "NbProcessors","E_mail","Type","Script","myxml"]:
+        for k in ["nicedate", "nb_proc", "e_mail", "info", "script", "priority", "myjobfile"]:
             try:
                 p.append("    %s : %s"%(k, getattr(self, k)) )
             except:
                 pass
         return "\n".join(p)
-def job_list(path, sorted=True):
-    " returns a list with all jobs in dire"
+def job_list(path, do_sort=True):
+    " returns a list with all jobs in path"
     ll = []
     for i in os.listdir(path):
         if os.path.isdir(os.path.join(path,i)) :
             ll.append( Job(path,i) )
-    if sorted:
+    if do_sort:
         ll.sort(reverse=True, key=lambda j: j.date)   # sort by reversed date
     return ll
 
@@ -176,18 +186,28 @@ class QM(object):
         self.config.readfp(open(configfile))
         self.QM_FOLDER = self.config.get("QMServer", "QM_FOLDER")
         self.MaxNbProcessors = self.config.get("QMServer", "MaxNbProcessors")
+        self.job_file = self.config.get("QMServer", "job_file")
+        if self.job_file.endswith('.xml'):
+            self.job_type = 'xml'
+        elif self.job_file.endswith('.cfg'):
+            self.job_type = 'cfg'
+        else:
+            raise Exception("job_file should be either .xml or .cfg")
+        Job.job_file = self.job_file    # inject into Job class
+        Job.job_type = self.job_type
         self.ROOT = self.QM_FOLDER
         self.debug = self.config.getboolean( "QMServer", "Debug")
         self.qJobs = op.join(self.QM_FOLDER,"QM_qJobs")
         self.Jobs = op.join(self.QM_FOLDER,"QM_Jobs")
         self.dJobs = op.join(self.QM_FOLDER,"QM_dJobs")
+        self.queue_jobs = []
         self.nap_time = 1.0
 
     def run(self):
         "the way to start to QM endless loo"
         while True :
-            next = self.wait_for_job()
-            self.run_job(next)            
+            next_one = self.wait_for_job()
+            self.run_job(next_one)
     def nap(self):
         "waiting method for spooling"
         time.sleep(self.nap_time)
@@ -203,23 +223,10 @@ class QM(object):
             self.nap()
         next_job = self.queue_jobs.pop()
         return next_job
-    def watch_procs(self):
-        """
-        method that watches procs and finishs when no proc is calculating
-        """
-        jobs = self.determine_Jobs()
-        
-        while len(jobs) > 0:
-            self.nap()
-            jobs = self.determine_Jobs()
-        print directory_qJobs,directory_Jobs
-        os.mkdir(directory_Jobs)
-        
-        os.rename(directory_qJobs,directory_Jobs)
-        
+
     def run_job(self, job):
         """
-        method that deals with moving job to do around and running NPK 
+        method that deals with moving job to do around and running  job.script 
         maybe also send e-mail once the job is done ... 
         """
         print "###########\nStarting :\n", job
@@ -230,24 +237,20 @@ class QM(object):
         os.rename(to_qJobs, to_Jobs)
         job.loc = self.Jobs
         os.chdir(to_Jobs)
-        if job.Script == "unknown":
-            job.Script = 'echo no-script; pwd; sleep 10; ls -l'
-            print "empty job"
-        if job.NbProcessors > self.MaxNbProcessors:
-            msg = "###########\nNb of processors limited to %d\n###########\n"%self.MaxNbProcessors
+        if job.script == "unknown":
+            job.script = 'echo no-script; pwd; sleep 10; ls -l'
+            print "XXXX   undefined script in info file   XXXX"
+        if int(job.nb_proc) > int(self.MaxNbProcessors):
+            msg = "###########\nNb of processors limited to %d\n###########\n"%int(self.MaxNbProcessors)
             print msg
             with open("process.log","w") as F:
                 F.write(msg)
-            job.NbProcessors = self.MaxNbProcessors
-        putenv("NB_PROC", str(job.NbProcessors))
-        Script = job.Script+">> process.log 2>&1"
-        try:
-            retcode = subprocess.call(Script, shell=True)
-        except OSError, e:
-            print "Execution failed:", e
+            job.nb_proc = self.MaxNbProcessors
+        os.putenv("NB_PROC", str(job.nb_proc))
+        job.run()
         os.chdir(self.qJobs)
         os.rename(to_Jobs, to_dJobs)
-
+        print "###########\nFinished:\n"
 
 if  __name__ == '__main__':
     q = QM("QMserv.cfg")
