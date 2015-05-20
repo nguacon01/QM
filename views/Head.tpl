@@ -20,18 +20,18 @@
           href="/static/img/BigReichenbach_Turner_icon.jpg">
 
     <!-- Bootstrap Core CSS -->
-    <link rel="stylesheet" href="/static/css/bootstrap_spike.css">
+    <link rel="stylesheet" href="/stati/css/bootstrap_spike.css">
     <!-- <link rel="stylesheet" href="/static/css/bootstrap-combined.min.css"> -->
-     <link href="/static/css/css.css" rel="stylesheet" type="text/css">
+     <link href="/stati/css/css.css" rel="stylesheet" type="text/css">
      <!-- <link href="/static/first_page/font-awesome.css" rel="stylesheet" type="text/css"> -->
-      <link rel="stylesheet" href="/static/css/clean-blog.css">
+      <link rel="stylesheet" href="/stati/css/clean-blog.css">
     
     <style>
       h1,h2,h3,h4,h5,h6,.h1,.h2,.h3,.h4,.h5,.h6 {
       font-family: inherit;
       font-weight: 500;
       line-height: 1.1;
-      color: color:#ffffff
+      color: color:#000
       }
       </style>
 

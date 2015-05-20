@@ -60,7 +60,6 @@ from ConfigParser import SafeConfigParser
 from xml.sax import handler, make_parser
 from datetime import datetime, timedelta
 
-
 __version__ = 0.1
 
 def start_logger():
@@ -139,13 +138,35 @@ class Job(object):
     @property
     def mylog(self):
         return op.join(self.loc, self.name, "process.log")
+    @property
+    def size(self):
+        tt = "undefined"
+        try:
+            for line in open(self.myparam,'r').readlines():
+                infos = line.split("=")
+                if len(infos) >= 2 and infos[0] == "col_list":
+                    col_list = eval(infos[1])
+            tt = "%d"%len(col_list)
+        except:
+            pass
+        return tt
     def avancement(self):
-        av = (time.time-self.timestarted)/30  # assumes 30 sec jobs
+        """   analyse log file, return avancement as a string 0 ... 100   """
+        import re
+        av = 0.0
+        try:
+            for l in open(self.mylog,'r').readlines():
+                print l
+                m = re.match("\s+(\d+)\s*/\s*(\d+)",l)   ### Processing col 8154   5 / 32
+                if m:  av = float(m.group(1))/float(m.group(2))
+        except:
+            pass
+        print "avancement", av
         return "%.f"%(100.0*av)
     def time(self):
         """   analyse log file, return elapsed time as a string """
         import re
-        tt = "undefined"
+        tt = "- undefined -"
         try:
             for l in open(self.mylog, 'r').readlines():
                 m = re.search("time:\s*(\d+)",l)   #
@@ -169,6 +190,7 @@ class Job(object):
             except:
                 pass
         return "\n".join(p)
+
 def job_list(path, error, do_sort=True):
     " returns a list with all jobs in path"
     ll = []
@@ -214,6 +236,7 @@ class QM(object):
             self.job_type = 'cfg'
         else:
             raise Exception("job_file should be either .xml or .cfg")
+        self.mailactive = self.config.getboolean("QMServer", "MailActive")
         Job.job_file = self.job_file    # inject into Job class
         Job.job_type = self.job_type
         self.ROOT = self.QM_FOLDER
@@ -273,14 +296,42 @@ class QM(object):
         job.run()
         os.chdir(self.qJobs)
         os.rename(to_Jobs, to_dJobs)
+        if self.mailactive:
+            address = job.e_mail
+            subject = "QM Job - %s - finished"%job.name
+            to_mail = """
+The job named - {0} - started on QueueManager is finished
+
+Info : {4}
+
+The processing took :      {1}
+Result can be found here : {2}
+QueueManager host is :     {3}
+
+Virtually yours,
+
+The QueueManager
+""".format(job.name, job.time(), to_dJobs, os.uname()[1], job.info )
+            try:
+                mail(address, subject, to_mail )
+            except:
+                logging.error("Mail to %s could not be sent"%address)
         logging.info( "Job Finished")
 
 if  __name__ == '__main__':
     start_logger()
     q =  QM("QMserv.cfg")
+    if q.mailactive:
+        try:
+            from spike.util.sendgmail import mail    # if spike available
+        except ImportError:
+            from sendgmail import mail               # otherwise, copy it here
+            logging.warning( "Using local version of sendgmail.mail")
     queue_jobs = job_list(q.qJobs, q.dJobs)
+    # print listing
     if q.debug:
         logging.debug( "Dump of queue at start-up" )
         while queue_jobs:
             logging.debug( repr(queue_jobs.pop()) )
+    # then loop for ever
     q.run()

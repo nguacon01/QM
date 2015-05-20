@@ -5,10 +5,10 @@ function timedRefresh(timeoutPeriod) {    setTimeout("location.reload(true);",ti
 //   -->
 </script>
 </head>
-<body onload="JavaScript:timedRefresh(30000);" style= "background: url('/static/img/BigReichenbach_Turner.jpg') repeat-y;  background-size: cover;" >
-<p><i>determined at {{now}}</i> - <em>This page will refresh automatically every 30 seconds.</em></p>
+<body onload="JavaScript:timedRefresh(10000);" style= "background: url('/static/img/BigReichenbach_Turner.jpg') repeat-y;  background-size: cover;" >
+<p><i>determined at {{now}}</i> - <em>This page will refresh automatically every 10 seconds.</em></p>
 
-<H1 style="color:#ffffff">Monitoring QM server</H1>
+<H1 style="color:#000">Monitoring QM server</H1>
 <div id="container">
 <hr>
 <h2>Queuing Jobs</h2>
@@ -24,7 +24,7 @@ function timedRefresh(timeoutPeriod) {    setTimeout("location.reload(true);",ti
                     <a href="/delete/QM_qJobs/{{i.name}}">delete</a>
                 </center></td>
                 <td>{{i.size}} columns</td>
-                <td>{{i.E_mail}}</td>
+                <td>{{i.e_mail}}</td>
                 <td>{{i.nicedate}}</td>
             </tr>
         %end
@@ -49,7 +49,7 @@ function timedRefresh(timeoutPeriod) {    setTimeout("location.reload(true);",ti
             <td><a href="/kill/{{running.name}}">KILL</a></td>
         %end
         <td>{{running.size}} columns</td>
-        <td>{{running.E_mail}}</td>
+        <td>{{running.e_mail}}</td>
         <td>Started at :{{running.started}}</td>
         </tr>
         </table>
@@ -72,8 +72,8 @@ function timedRefresh(timeoutPeriod) {    setTimeout("location.reload(true);",ti
             <a href="/delete/QM_dJobs/{{i.name}}">delete</a>
         </center></td>
         <td>{{i.time()}} seconds</td>
-        <td>{{i.size}} columns</td>
-        <td>{{i.E_mail}}</td>
+        <td>{{i.size}}</td>
+        <td>{{i.e_mail}}</td>
         <td>{{i.nicedate}}</td>
     </tr>
 %end

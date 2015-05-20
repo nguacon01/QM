@@ -26,109 +26,107 @@ This code is Licenced under the Cecill licence code
 
 import bottle as b
 from bottle import static_file
+import time
 from datetime import datetime, timedelta
 from xml.sax import handler, make_parser
 import glob
 import os
 import os.path as op
 import sys
-from defaultConfigParser import defaultConfigParser
+from ConfigParser import SafeConfigParser
+from QueueManager import Job
 
-# read config
-configfile = "QMserv.cfg"
-config = defaultConfigParser()
-config.readfp(open(configfile))
-QM_FOLDER = config.get( "QMServer", "QM_FOLDER")
-ROOT = QM_FOLDER
-debug = config.getboolean( "WEB_QMserver", "Debug")
-Host = config.get( "WEB_QMserver", "Host")
-The_Port = config.getint( "WEB_QMserver", "The_Port", 8000)
-Licence_to_kill = config.getboolean( "WEB_QMserver", "Licence_to_kill", False)
 
 ###### Utilities
-class AnalInfo(handler.ContentHandler):
-    "used to parse info.xml files"
-    def __init__(self,job):
-        self.job = job
-    def startElement(self, name, attrs):
-        if name=="NbProcessors":
-            self.job.NbProcessors=attrs.get("value")
-        if name=="E-mail":
-            self.job.E_mail=attrs.get("value")
-        if name=="Type":
-            self.job.Type=attrs.get("value")
-class Job(object):
-    """this class holds every thing to describe a job"""
-    def __init__(self,loc,name):
-        self.loc = loc      # QM_xJobs
-        self.name = name    # the job directory name
-        self.NbProcessors = 1
-        self.E_mail = "unknown"
-        self.Type ="urQRd"
-        self.parsexml()
-        self.date = os.stat(self.myxml) [9]   # will be used for sorting - myxml stronger than url
-        self.nicedate = datetime.fromtimestamp(self.date).strftime("%d %b %Y %H:%M:%S")
-        self.timestarted = time.time()
-    @property
-    def url(self):
-        return op.join(self.loc,self.name)
-        @property
-    def started(self):
-        return self.nicedate
-    @property
-    def myxml(self):
-        return op.join(self.loc,self.name,"infos.xml")
-    def parsexml(self):
-        """    analyses info.xml files    """
-        parser = make_parser()
-        handler = AnalInfo(self)
-        parser.setContentHandler(handler)
-        try:
-            parser.parse(self.myxml)
-        except:
-            pass
-    @property
-    def mylog(self):
-        return op.join(self.loc,self.name,"NPKDosy0.log")
-    def avancement(self):
-        av = (time.time-self.timestarted)/30  # assumes 30 sec jobs
-        return "%.f"%(100.0*av)
-    def time(self):
-        """   analyse log file, return elapsed time as a string """
-        import re
-        tt = "undefined"
-        try:
-            for l in open(self.mylog,'r').readlines():
-                m = re.search("time:\s*(\d+)",l)   #
-                if m:  tt = m.group(1)
-        except:
-            pass
-        return tt
-        
-    @property
-    def myparam(self):
-        return op.join(self.loc,self.name,"param.gtb")
-    @property
-    def size(self):
-        tt = "undefined"
-        try:
-            for line in open(self.myparam,'r').readlines():
-                infos = line.split("=")
-                if len(infos) >= 2 and infos[0] == "col_list":
-                    col_list = eval(infos[1])
-            tt = "%d"%len(col_list)
-        except:
-            pass
-        return tt
-def job_list(dire, sorted=True):
-    " returns a list with all jobs in dire"
+# class AnalInfo(handler.ContentHandler):
+#     "used to parse info.xml files"
+#     def __init__(self,job):
+#         self.job = job
+#     def startElement(self, name, attrs):
+#         if name=="NbProcessors":
+#             self.job.NbProcessors=attrs.get("value")
+#         if name=="E-mail":
+#             self.job.e_mail=attrs.get("value")
+#         if name=="Type":
+#             self.job.Type=attrs.get("value")
+# class Job(object):
+#     """this class holds every thing to describe a job"""
+#     def __init__(self,loc,name):
+#         self.loc = loc      # QM_xJobs
+#         self.name = name    # the job directory name
+#         self.NbProcessors = 1
+#         self.e_mail = "unknown"
+#         self.Type ="urQRd"
+#         self.parsexml()
+#         self.date = os.stat(self.myxml) [9]   # will be used for sorting - myxml stronger than url
+#         self.nicedate = datetime.fromtimestamp(self.date).strftime("%d %b %Y %H:%M:%S")
+#         self.timestarted = time.time()
+#     @property
+#     def url(self):
+#         return op.join(self.loc,self.name)
+#     @property
+#     def started(self):
+#         return self.nicedate
+#     @property
+#     def myxml(self):
+#         return op.join(self.loc,self.name,"infos.xml")
+#     def parsexml(self):
+#         """    analyses info.xml files    """
+#         parser = make_parser()
+#         handler = AnalInfo(self)
+#         parser.setContentHandler(handler)
+#         try:
+#             parser.parse(self.myxml)
+#         except:
+#             pass
+#     @property
+#     def mylog(self):
+#         return op.join(self.loc,self.name,"NPKDosy0.log")
+#     def avancement(self):
+#         av = (time.time-self.timestarted)/30  # assumes 30 sec jobs
+#         return "%.f"%(100.0*av)
+#     def time(self):
+#         """   analyse log file, return elapsed time as a string """
+#         import re
+#         tt = "undefined"
+#         try:
+#             for l in open(self.mylog,'r').readlines():
+#                 m = re.search("time:\s*(\d+)",l)   #
+#                 if m:  tt = m.group(1)
+#         except:
+#             pass
+#         return tt
+#         
+#     @property
+#     def myparam(self):
+#         return op.join(self.loc,self.name,"param.gtb")
+#     @property
+#     def size(self):
+#         tt = "undefined"
+#         try:
+#             for line in open(self.myparam,'r').readlines():
+#                 infos = line.split("=")
+#                 if len(infos) >= 2 and infos[0] == "col_list":
+#                     col_list = eval(infos[1])
+#             tt = "%d"%len(col_list)
+#         except:
+#             pass
+#         return tt
+def job_list(path, do_sort=True):
+    " returns a list with all jobs in path"
     ll = []
-    dd = os.path.join(ROOT,dire)
-    for i in os.listdir(dd):
-        if os.path.isdir(os.path.join(dd,i)) :
-            ll.append( Job(dd,i) )
-    if sorted:
+    for i in os.listdir(path):
+        if os.path.isdir(os.path.join(path,i)) :
+            if True: #try:
+                JJ = Job(path,i)
+            # except:
+            #     print "Job invalid: "+os.path.join(path,i)
+            # else:
+                ll.append( JJ )
+    if do_sort:
         ll.sort(reverse=True, key=lambda j: j.date)   # sort by reversed date
+    if debug:
+        print ll
     return ll
 
 def stat(dire):
@@ -138,11 +136,11 @@ def stat(dire):
     cpu_users = defaultdict(int)    # collect cpu time
     job_users = defaultdict(int)    # collect nb of jobs
     for j in jobs:
-        if j.E_mail == "":
-            j.E_mail = "Anonymous"
-        job_users[j.E_mail] += 1
+        if j.e_mail == "":
+            j.e_mail = "Anonymous"
+        job_users[j.e_mail] += 1
         try:
-            cpu_users[j.E_mail] += int(j.time())
+            cpu_users[j.e_mail] += int(j.time())
         except ValueError:
             pass
     for u in cpu_users.keys():
@@ -172,9 +170,9 @@ def QM():
     running=0
     licence_to_kill = Licence_to_kill
     now = datetime.now().strftime("%a, %d %b %Y %H:%M:%S")
-    done = job_list('QM_dJobs')
-    waiting = job_list('QM_qJobs')
-    r = job_list('QM_Jobs')
+    done = job_list(QM_dJobs)
+    waiting = job_list(QM_qJobs)
+    r = job_list(QM_Jobs)
     if r:
         running = r[0]
     return locals()
@@ -257,6 +255,40 @@ def fichier(file):
     return b.static_file(file, root=ROOT)
 
 
+
+# read config
+configfile = "QMserv.cfg"
+config = SafeConfigParser()
+config.readfp(open(configfile))
+QM_FOLDER = config.get( "QMServer", "QM_FOLDER")
+QM_qJobs = op.join(QM_FOLDER,"QM_qJobs")
+QM_Jobs = op.join(QM_FOLDER,"QM_Jobs")
+QM_dJobs = op.join(QM_FOLDER,"QM_dJobs")
+
+job_file = config.get("QMServer", "job_file")
+if job_file.endswith('.xml'):
+    job_type = 'xml'
+elif job_file.endswith('.cfg'):
+    job_type = 'cfg'
+else:
+    raise Exception("job_file should be either .xml or .cfg")
+mailactive = config.getboolean("QMServer", "MailActive")
+
+Job.job_file = job_file    # inject into Job class
+Job.job_type = job_type
+
+
+ROOT = QM_FOLDER
+debug = config.getboolean( "WEB_QMserver", "Debug")
+Host = config.get( "WEB_QMserver", "Host")
+try:
+    The_Port = config.getint( "WEB_QMserver", "The_Port")
+except:
+    The_Port =  8000
+try:
+    Licence_to_kill = config.getboolean( "WEB_QMserver", "Licence_to_kill")
+except:
+    Licence_to_kill = False
 b.debug(debug)
 b.run(host=Host, port=The_Port, reloader=debug)
 
