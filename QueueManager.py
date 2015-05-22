@@ -60,7 +60,7 @@ from ConfigParser import SafeConfigParser
 from xml.sax import handler, make_parser
 from datetime import datetime, timedelta
 
-__version__ = 0.1
+__version__ = 0.2
 
 def start_logger():
     "configurate and start logger"
@@ -157,8 +157,10 @@ class Job(object):
         try:
             for l in open(self.mylog,'r').readlines():
                 print l
-                m = re.match("\s+(\d+)\s*/\s*(\d+)",l)   ### Processing col 8154   5 / 32
-                if m:  av = float(m.group(1))/float(m.group(2))
+                m = re.search("\s+(\d+)\s*/\s*(\d+)",l)   ### Processing col 8154   5 / 32
+                if m:
+                    print m.group(1), m.group(2)
+                    av = float(m.group(1))/float(m.group(2))
         except:
             pass
         print "avancement", av
@@ -174,14 +176,33 @@ class Job(object):
         except:
             pass
         return tt
-    def run(self):
+    def run1(self):
+        "Launch the job - shell script way"
         Script = self.script+">> process.log 2>&1"
         try:
             retcode = subprocess.call(Script, shell=True)
         except OSError, e:
             logging.error("Execution failed:"+ str(e))
             retcode = -1
+    def run2(self):
+        "Launch the job - Popen way - DOES NOT WORK YET"
+        logfile = open("process.log",'w')
+        logfile.write("coucou4\n")
+        self.script = "python"
+        if True:
+            p1 = subprocess.Popen(self.script, stdout=subprocess.PIPE, stderr=subprocess.STDOUT)
+            while True:
+                retcode = p1.poll()
+                if retcode is None:
+                    logfile.write(p1.communicate()[0])
+                    time.sleep(1.0)
+                else:
+                    print "job finished", retcode
+                    break
+        logfile.write(p1.communicate()[0])
+        logfile.close()
         return retcode
+    run = run1
     def __repr__(self):
         p = ["JOB  %s"%self.name]
         for k in ["nicedate", "nb_proc", "e_mail", "info", "script", "priority", "myjobfile"]:
@@ -275,7 +296,8 @@ class QM(object):
         method that deals with moving job to do around and running  job.script 
         maybe also send e-mail once the job is done ... 
         """
-        logging.info("Starting %s\n%s"%(job.name,repr(job)) )
+        logging.info("Starting %s"%(job.name,) )
+        logging.debug(repr(job))
         to_qJobs = op.join(self.qJobs, job.name)
         to_Jobs = op.join(self.Jobs, job.name)
         to_dJobs = op.join(self.dJobs, job.name)
@@ -330,7 +352,7 @@ if  __name__ == '__main__':
     queue_jobs = job_list(q.qJobs, q.dJobs)
     # print listing
     if q.debug:
-        logging.debug( "Dump of queue at start-up" )
+        logging.debug( "Dump queue content at start-up" )
         while queue_jobs:
             logging.debug( repr(queue_jobs.pop()) )
     # then loop for ever

@@ -67,6 +67,7 @@ contains the parameters for the QueueManager program
 
 
 #Creating and launching jobs
+##basic jobs
 
 jobs are folders, they contain all the need information to run code.
 Minimum job is
@@ -107,14 +108,82 @@ import mymodule
 ```
 The python import will then be able to import your code directly from the zip file.
 
+##one example
+Here is an example job (we assume `QueueManager.py` is configured and running)
 
+- the job is called `test_QM` ; a folder, with this name contains the following files
 
-* Summary of set up
-* Configuration
-* Dependencies
-* Database configuration
-* How to run tests
-* Deployment instructions
+```
+>ls -l test_QM
+-rw-r--r--@ 1 mad  admin     141 May 20 18:28 proc_config.cfg
+-rw-r--r--@ 1 mad  admin  817708 Apr 30 16:02 spike.zip
+-rw-r--r--@ 1 mad  admin     853 May 22 15:09 test.py
+
+```
+
+- `proc_config.cfg` is as follows :
+
+```
+[Proc]
+Size : 10
+
+[QMOptions]
+nb_proc : 4
+e_mail : madelsuc@unistra.fr
+info : Test of the QM manager
+script : python test.py proc_config.cfg
+```
+
+- The test.py program is as follows :
+
+```
+import sys
+sys.path.insert(0,'spike.zip')
+from spike.NPKConfigParser import NPKConfigParser
+
+'''
+Dummy processing,  as a test for QM
+'''
+def PROC(config):
+    size = config.getint("Proc","Size")
+    total = 0
+    for i in range(size):
+        print "processing %d / %d"%(i+1,size)   # produces : processing i / size   
+        total = total  + i*(total+i)
+        time.sleep(10./size)                # this is just to slow the program down - for demo
+    with open('results.txt','w') as F:
+        F.write("Final result is :\n%d"%total)
+    print "Done"
+if __name__=='__main__':
+    configfile = sys.argv[1]
+    config = NPKConfigParser()
+    config.read(configfile)
+    processing = PROC(config)
+```
+Note :
+ - how the program get the Size parameter from the proc_config.cfg, which has here a double use.
+ - how the [QMOptions] section contains the info for QM, but the [Proc] section, ignored by QM, is used by the script for getting its parameters.
+ - writing something like   `xxxx   i / n`  on the standard output helps the WEB monitor to follow the processing ( *not fully implemented yet* )
+ - a file is created (`results.txt`)
+  
+When the `test_QM` folder is copied into QM_qJobs, it should disappear after a few second, and move to QM_Jobs.
+The script is executed, and `test.py` launched with the parameters.
+
+After a few minutes, the program finishes, and `test_QM` is moved to the QM_dJobs folder.
+You should find now this :
+
+```
+>ls -l QM_dJobs/test_QM
+-rw-r--r--@ 1 mad  admin     141 May 20 18:28 proc_config.cfg
+-rw-r--r--  1 mad  admin     898 May 22 15:10 process.log
+-rw-r--r--  1 mad  admin      25 May 22 15:10 results.txt
+-rw-r--r--@ 1 mad  admin  817708 Apr 30 16:02 spike.zip
+-rw-r--r--@ 1 mad  admin     853 May 22 15:09 test.py
+```
+where
+- `process.log` contains the output of the program
+- `results.txt` has been create by running the program
+
 
 
 #contact
