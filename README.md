@@ -1,13 +1,5 @@
 # QueueManager #
 
-mkdir
-
-
-Licence to kill
-
-
-
-
 # Presentation
 The QM (QueueManager) program implements a simplistic Queue Manager, i.e. it allows to run programs in batch, with a queueing system.
 
