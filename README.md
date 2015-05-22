@@ -19,9 +19,9 @@ A small file giving some information describing the job has to be written.
 
 QM has been tested and used on Linux, MacOsX, and Windows. It is written in python, but can laucnh codes written in any langages
 
-QM comes with two independt programs :
-* QueueManager.py is the QM program itself
-* WEB_QMserver.oy is a utility allowing to monitor QM through a web page - not fully debuged yet !
+QM comes with two independent programs :
+* **QueueManager.py** is the QM program itself
+* **WEB_QMserver.py** is a utility allowing to monitor QM through a web page - not fully debuged yet !
 
 
 
