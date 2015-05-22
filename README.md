@@ -42,17 +42,21 @@ should do it
 
 ### program setup
 QM operations are organized around 3 folders, which should be created anywhere on your disk.
+
 * `QM_qJobs`    queuing jobs
 * `QM_Jobs`     running jobs
 * `QM_dJobs`    done jobs
 
 Then QM and the monitor are parametrized in by configuration file called `QMserv.cfg`
 
-### `QMserv.cfg` content
+### configuration
+The configuration is done in the file `QMserv.cfg`.
 This is a python configuration file, read by the `ConfigParser` python module
 There are two sections `QMServer` and `WEB_QMserver`
+
 ####QMServer
 contains the parameters for the QueueManager program
+
 - `QM_FOLDER` :  the path where you have placed QM_* folders
 - `MaxNbProcessors` : the maximum number of processors allowed for one job
 - `job_file` : name of the job description file, file can be xml or cfg file types (see below)
@@ -60,6 +64,7 @@ contains the parameters for the QueueManager program
 - `Debug` : debug mode, should not be active in production mode
 
 ####WEB_QMserver
+
 - `Host` : the hostname uder which the web page is served, if you choose `localhost` the page will available only on your local machine; if you put the complete name of your computer, the page will be seen on your local network
 - `The_Port` : the port on which the server is serving, default is 8000
 - `Licence_to_kill` : if True, the kill button will be present (to kill the running job) NOT FULLY DEBUGGED - use at your own risks
@@ -71,8 +76,10 @@ contains the parameters for the QueueManager program
 
 jobs are folders, they contain all the need information to run code.
 Minimum job is
+
     - a info file, either in xml or cfg format (defined in QMserv.cfg)
     - a script to launch
+
 but you can put in there everything you need (data, code, etc...)
 
 The info file should contain :
@@ -161,12 +168,13 @@ if __name__=='__main__':
     processing = PROC(config)
 ```
 Note :
+
  - how the program get the Size parameter from the proc_config.cfg, which has here a double use.
  - how the [QMOptions] section contains the info for QM, but the [Proc] section, ignored by QM, is used by the script for getting its parameters.
  - writing something like   `xxxx   i / n`  on the standard output helps the WEB monitor to follow the processing ( *not fully implemented yet* )
- - a file is created (`results.txt`)
+ - a file is created ( `results.txt` )
   
-When the `test_QM` folder is copied into QM_qJobs, it should disappear after a few second, and move to QM_Jobs.
+When the `test_QM` folder is copied into QM_qJobs, it should disappear after a few seconds, and move to QM_Jobs.
 The script is executed, and `test.py` launched with the parameters.
 
 After a few minutes, the program finishes, and `test_QM` is moved to the QM_dJobs folder.
@@ -181,6 +189,7 @@ You should find now this :
 -rw-r--r--@ 1 mad  admin     853 May 22 15:09 test.py
 ```
 where
+
 - `process.log` contains the output of the program
 - `results.txt` has been create by running the program
 
