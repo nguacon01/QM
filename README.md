@@ -23,8 +23,9 @@ QM comes with two independent programs :
 
 The current version is working, but still preliminary. Some features are still missing (see below)
 
-This code is Licenced under the Cecill licence code
+This code is Licenced under the [Cecill 2.1](http://www.cecill.info/licences/Licence_CeCILL_V2.1-en.html) licence code
 
+---
 
 #Set-up
 
@@ -71,14 +72,16 @@ contains the parameters for the QueueManager program
 - `Debug` : debug mode, should not be active in production mode
 
 
+---
+
 #Creating and launching jobs
 ##basic jobs
 
 jobs are folders, they contain all the need information to run code.
 Minimum job is
 
-    - a info file, either in xml or cfg format (defined in QMserv.cfg)
-    - a script to launch
+  - a info file, either in xml or cfg format (defined in QMserv.cfg)
+  - a script to launch
 
 but you can put in there everything you need (data, code, etc...)
 
@@ -106,6 +109,18 @@ script : python process.py param1 param2
 The only required entry is script
 You can use this file for your own entries
 
+
+- `script` : **required** the command to execute
+- `e_mail` : is this is configured, a mail is sent to this adress at the end of the run
+- `info` : used to describde the job in the WEB job list
+- `nb_proc` : is used to limit the number of processors.
+
+`nb_proc` mechanism is still preliminary. 
+What is done for the moment is to set an environment variable `NB_PROC` which is not enforced, but should be checked by the script itself.
+
+
+
+
 The job program is then runs inside the job folder, which may contain any associated files.
 If you use `python` One nice trick you may use is to put there your python module as a zip file (remove all .pyc and .pyo files). Then write a little starter program, with the following line :
 ```
@@ -114,6 +129,7 @@ sys.path.insert(0,'mymodule.zip')
 import mymodule
 ```
 The python import will then be able to import your code directly from the zip file.
+
 
 ##one example
 Here is an example job (we assume `QueueManager.py` is configured and running)
@@ -194,7 +210,18 @@ where
 - `results.txt` has been create by running the program
 
 
+---
 
 #contact
 
 This code has been written by Marc-André Delsuc (madelsuc@unistra.fr).
+
+# Remarks
+This is a premilinary version. There are still bugs and missing features
+###Bugs
+- following the advance of the job in the WEB monitor is not working yet
+
+ 
+###missing features - *planned* -
+- the required folders should be created if missing, when launching QueueManager
+- a better way of limiting the number of processor should be installed - *an idea anybody* ?
