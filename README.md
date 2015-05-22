@@ -6,14 +6,15 @@ The QM (QueueManager) program implements a simplistic Queue Manager, i.e. it all
 The program QM runs in background, with a very small CPU overhead, it waits for jobs to appear in the query folder, verify it, and launch it.
 Once the job is finished, the results are moved to a folder were all done jobs are waiting for you for inspection.
 
-To performed this task, job have to be packaged to run in a stand alone manner, indepently of the location from where they are started.
+To performed this task, jobs have to be packaged to run in a stand alone manner, indepently of the location from where they are started.
 A small file giving some information describing the job has to be written.
 
 QM has been tested and used on Linux, MacOsX, and Windows. It is written in python, but can laucnh codes written in any langages
 
 QM comes with two independent programs :
-* **QueueManager.py** is the QM program itself
-* **WEB_QMserver.py** is a utility allowing to monitor QM through a web page - not fully debuged yet !
+
+ * **QueueManager.py** is the QM program itself
+ * **WEB_QMserver.py** is a utility allowing to monitor QM through a web page - not fully debuged yet !
 
 
 
@@ -29,7 +30,7 @@ This code is Licenced under the Cecill licence code
 
 ### dependences
 * The QM program and the Web monitor rely only on standard libraries. They run on python 2.7 - python 3.x not tested (and probably not working)
-* The Web monitor program requires the additional `bottle` program, which is packaged as a single file into this repository.
+* The Web monitor program requires the additional [`bottle`](http://bottlepy.org/)  program, which is packaged as a single file into this repository.
 
 ### program installation
 simply download the repository anywhere on your disk
@@ -118,5 +119,4 @@ The python import will then be able to import your code directly from the zip fi
 
 #contact
 
-This ode has been written by Marc-André Delsuc (madelsuc@unistra.fr).
-It is used
+This code has been written by Marc-André Delsuc (madelsuc@unistra.fr).
