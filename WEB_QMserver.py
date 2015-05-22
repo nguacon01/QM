@@ -240,7 +240,7 @@ def test(name):
 def stats():
     print "coucou"
     now = datetime.now().strftime("%a, %d %b %Y %H:%M:%S")
-    (job_users, cpu_users) = stat("QM_dJobs")
+    (job_users, cpu_users) = stat(QM_dJobs)
     time_users = {u:timedelta(seconds=cpu_users[u]) for u in cpu_users.keys() }
     cputotal = sum(cpu_users.values())
     timetotal = timedelta(seconds=cputotal)
