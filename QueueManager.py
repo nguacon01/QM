@@ -84,7 +84,11 @@ class XmlInfo(handler.ContentHandler):
 #     """
 #     class that handles one job
 #     """
+<<<<<<< local
+#     def __init__(self, path):
+=======
 #     def __init__(self, path, name):
+>>>>>>> other
 #         "creates one empty jobs with located in path"
 #     def run(self):
 #         os.system(self.script)
@@ -105,7 +109,11 @@ class Job(object):
         self.info = "unknown"
         self.script = "unknown"
         self.priority = 0
+<<<<<<< local
+        keylist = ["nb_proc", "e_mail", "info", "script"]  # adapt here
+=======
         keylist = ["nb_proc", "e_mail", "info", "script", "priority"]  # adapt here
+>>>>>>> other
         self.keylist = keylist
         # and get them
         if self.job_type == "xml":
