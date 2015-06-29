@@ -8,7 +8,7 @@
     <meta name="viewport" content="width=device-width, initial-scale=1">
     <meta name="description" content="Casc4de">
 
-    <title>Welcome in QM Web Monitor</title>
+    <title>Welcome to QM Monitor</title>
     
     <!-- Scripts -->
     <script src="https://ajax.googleapis.com/ajax/libs/jquery/1.11.2/jquery.min.js"></script>

@@ -238,7 +238,6 @@ def test(name):
 @b.route()
 @b.view('stats')
 def stats():
-    print "coucou"
     now = datetime.now().strftime("%a, %d %b %Y %H:%M:%S")
     (job_users, cpu_users) = stat(QM_dJobs)
     time_users = {u:timedelta(seconds=cpu_users[u]) for u in cpu_users.keys() }

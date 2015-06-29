@@ -172,6 +172,7 @@ def PROC(config):
     total = 0
     for i in range(size):
         print "processing %d / %d"%(i+1,size)   # produces : processing i / size   
+        sys.stdout.flush()
         total = total  + i*(total+i)
         time.sleep(10./size)                # this is just to slow the program down - for demo
     with open('results.txt','w') as F:
@@ -187,8 +188,8 @@ Note :
 
  - how the program get the Size parameter from the proc_config.cfg, which has here a double use.
  - how the [QMOptions] section contains the info for QM, but the [Proc] section, ignored by QM, is used by the script for getting its parameters.
- - writing something like   `xxxx   i / n`  on the standard output helps the WEB monitor to follow the processing ( *not fully implemented yet* )
- - a file is created ( `results.txt` )
+ - writing something like   `xxxx   i / n`  on the standard output helps the WEB monitor to follow the processing ( use `sys.stdout.flush()` to force flushing the output, so that QM may monitor it)
+ - a file is created ( `results.txt` ) This file is created locally inside the job folder.
   
 When the `test_QM` folder is copied into QM_qJobs, it should disappear after a few seconds, and move to QM_Jobs.
 The script is executed, and `test.py` launched with the parameters.
@@ -207,7 +208,7 @@ You should find now this :
 where
 
 - `process.log` contains the output of the program
-- `results.txt` has been create by running the program
+- `results.txt` has been created by running the program
 
 
 ---

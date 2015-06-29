@@ -4,7 +4,7 @@
 
 mini QueueManager
 
-Created by Marc-Andre' on 2015-4-14 loosely inspired from an early version 2009.
+Created by Marc-Andre' on 2015-4-14 loosely inspired from an early version from 2009.
 
 organized around 3 folders
 
@@ -12,7 +12,7 @@ QM_qJobs    queuing jobs
 QM_Jobs     running jobs
 QM_dJobs    done jobs
 
-jobs are folders, they contain all the need information to run code.
+jobs itself are folders, they contain all the need information to run code.
 Minimum job is
     - a info file, either in xml or cfg format (defined in QMserv.cfg)
     - a script to launch
@@ -80,19 +80,7 @@ class XmlInfo(handler.ContentHandler):
         if name in self.keylist:
             value = attrs.get("value")
             setattr(self.job, name, value)
-# class job(object):
-#     """
-#     class that handles one job
-#     """
-<<<<<<< local
-#     def __init__(self, path):
-=======
-#     def __init__(self, path, name):
->>>>>>> other
-#         "creates one empty jobs with located in path"
-#     def run(self):
-#         os.system(self.script)
-# 
+
 class Job(object):
     """this class holds every thing to describe a job"""
     job_type = None  # these entries will be overwriten at start-up
@@ -103,17 +91,14 @@ class Job(object):
         self.date = os.stat(self.myjobfile) [8]   # will be used for sorting - myjobfile stronger than url
         self.nicedate = datetime.fromtimestamp(self.date).strftime("%d %b %Y %H:%M:%S")
         self.timestarted = time.time()
-        # the following will be modified by parsexml
+        # the following will be modified by parsexml/parsecfg
         self.nb_proc = 1
         self.e_mail = "unknown"
         self.info = "unknown"
         self.script = "unknown"
         self.priority = 0
-<<<<<<< local
-        keylist = ["nb_proc", "e_mail", "info", "script"]  # adapt here
-=======
-        keylist = ["nb_proc", "e_mail", "info", "script", "priority"]  # adapt here
->>>>>>> other
+        self.size = "undefined"
+        keylist = ["nb_proc", "e_mail", "info", "script", "priority", "size"]  # adapt here
         self.keylist = keylist
         # and get them
         if self.job_type == "xml":
@@ -146,18 +131,6 @@ class Job(object):
     @property
     def mylog(self):
         return op.join(self.loc, self.name, "process.log")
-    @property
-    def size(self):
-        tt = "undefined"
-        try:
-            for line in open(self.myparam,'r').readlines():
-                infos = line.split("=")
-                if len(infos) >= 2 and infos[0] == "col_list":
-                    col_list = eval(infos[1])
-            tt = "%d"%len(col_list)
-        except:
-            pass
-        return tt
     def avancement(self):
         """   analyse log file, return avancement as a string 0 ... 100   """
         import re
@@ -310,19 +283,19 @@ class QM(object):
         to_Jobs = op.join(self.Jobs, job.name)
         to_dJobs = op.join(self.dJobs, job.name)
         
-        os.rename(to_qJobs, to_Jobs)
+        os.rename(to_qJobs, to_Jobs)    # First move job to work dir
         job.loc = self.Jobs
-        os.chdir(to_Jobs)
+        os.chdir(to_Jobs)           # and cd there
         if job.script == "unknown":
             job.script = 'echo no-script; pwd; sleep 10; ls -l'
             logging.warning("undefined script in info file")
-        if int(job.nb_proc) > int(self.MaxNbProcessors):
+        if int(job.nb_proc) > int(self.MaxNbProcessors):    
             msg = "Nb of processors limited to %d"%int(self.MaxNbProcessors)
             logging.warning( msg )
             with open("process.log","w") as F:
                 F.write(msg)
             job.nb_proc = self.MaxNbProcessors
-        os.putenv("NB_PROC", str(job.nb_proc))
+        os.putenv("NB_PROC", str(job.nb_proc))  # very primitive way of limiting proc number !
         job.run()
         os.chdir(self.qJobs)
         os.rename(to_Jobs, to_dJobs)
