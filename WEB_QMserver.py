@@ -11,18 +11,6 @@ This code is Licenced under the Cecill licence code
 
 """
 
-# ##### CONFIGURATION ###########
-#     # Please parametrize the absolute path of your QM folder 
-# QM_FOLDER = "/Volumes/biak_1ToHD/QM/QM"
-#     # debug mode, should not be active in production mode
-# debug = True
-#     # the port on which the server is serving
-# The_Port = 8000
-#     # if True, the kill button will be present (to kill the running job)
-#     # NOT FULLY DEBUGGED - use at your own risks
-# Licence_to_kill = True
-# ##### END OF CONFIGURATION ###########
-
 
 import bottle as b
 from bottle import static_file
@@ -37,81 +25,7 @@ from ConfigParser import SafeConfigParser
 from QueueManager import Job
 
 
-###### Utilities
-# class AnalInfo(handler.ContentHandler):
-#     "used to parse info.xml files"
-#     def __init__(self,job):
-#         self.job = job
-#     def startElement(self, name, attrs):
-#         if name=="NbProcessors":
-#             self.job.NbProcessors=attrs.get("value")
-#         if name=="E-mail":
-#             self.job.e_mail=attrs.get("value")
-#         if name=="Type":
-#             self.job.Type=attrs.get("value")
-# class Job(object):
-#     """this class holds every thing to describe a job"""
-#     def __init__(self,loc,name):
-#         self.loc = loc      # QM_xJobs
-#         self.name = name    # the job directory name
-#         self.NbProcessors = 1
-#         self.e_mail = "unknown"
-#         self.Type ="urQRd"
-#         self.parsexml()
-#         self.date = os.stat(self.myxml) [9]   # will be used for sorting - myxml stronger than url
-#         self.nicedate = datetime.fromtimestamp(self.date).strftime("%d %b %Y %H:%M:%S")
-#         self.timestarted = time.time()
-#     @property
-#     def url(self):
-#         return op.join(self.loc,self.name)
-#     @property
-#     def started(self):
-#         return self.nicedate
-#     @property
-#     def myxml(self):
-#         return op.join(self.loc,self.name,"infos.xml")
-#     def parsexml(self):
-#         """    analyses info.xml files    """
-#         parser = make_parser()
-#         handler = AnalInfo(self)
-#         parser.setContentHandler(handler)
-#         try:
-#             parser.parse(self.myxml)
-#         except:
-#             pass
-#     @property
-#     def mylog(self):
-#         return op.join(self.loc,self.name,"NPKDosy0.log")
-#     def avancement(self):
-#         av = (time.time-self.timestarted)/30  # assumes 30 sec jobs
-#         return "%.f"%(100.0*av)
-#     def time(self):
-#         """   analyse log file, return elapsed time as a string """
-#         import re
-#         tt = "undefined"
-#         try:
-#             for l in open(self.mylog,'r').readlines():
-#                 m = re.search("time:\s*(\d+)",l)   #
-#                 if m:  tt = m.group(1)
-#         except:
-#             pass
-#         return tt
-#         
-#     @property
-#     def myparam(self):
-#         return op.join(self.loc,self.name,"param.gtb")
-#     @property
-#     def size(self):
-#         tt = "undefined"
-#         try:
-#             for line in open(self.myparam,'r').readlines():
-#                 infos = line.split("=")
-#                 if len(infos) >= 2 and infos[0] == "col_list":
-#                     col_list = eval(infos[1])
-#             tt = "%d"%len(col_list)
-#         except:
-#             pass
-#         return tt
+
 def job_list(path, do_sort=True):
     " returns a list with all jobs in path"
     ll = []
