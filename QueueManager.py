@@ -138,7 +138,7 @@ class Job(object):
         try:
             for l in open(self.mylog,'r').readlines():
                 print l
-                m = re.search("\s+(\d+)\s*/\s*(\d+)",l)   ### Processing col 8154   5 / 32
+                m = re.search(r"\s+(\d+)\s*/\s*(\d+)",l)   ### Processing col 8154   5 / 32
                 if m:
                     print m.group(1), m.group(2)
                     av = float(m.group(1))/float(m.group(2))

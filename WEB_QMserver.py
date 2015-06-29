@@ -156,7 +156,7 @@ def static(filename):
     return static_file(filename, root='views/static/')
     
 @b.route('/test')
-def test():
+def testl():
     id = b.request.GET['id']
     q = b.request.query_string
     return q, "\nId = ",id
