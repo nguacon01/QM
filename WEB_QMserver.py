@@ -83,6 +83,7 @@ def QM():
     "returns the front page of QM helper"
     running=0
     licence_to_kill = Licence_to_kill
+    refresh = 9  # refresh rate
     now = datetime.now().strftime("%a, %d %b %Y %H:%M:%S")
     done = job_list(QM_dJobs)
     waiting = job_list(QM_qJobs)

@@ -5,8 +5,8 @@ function timedRefresh(timeoutPeriod) {    setTimeout("location.reload(true);",ti
 //   -->
 </script>
 </head>
-<body onload="JavaScript:timedRefresh(10000);" style= "background: url('/static/img/BigReichenbach_Turner.jpg') repeat-y;  background-size: cover;" >
-<p><i>determined at {{now}}</i> - <em>This page will refresh automatically every 10 seconds.</em></p>
+<body onload="JavaScript:timedRefresh({{1000*refresh}});" style= "background: url('/static/img/BigReichenbach_Turner.jpg') repeat-y;  background-size: cover;" >
+<p><i>determined at {{now}}</i> - <em>This page will refresh automatically every {{refresh}} seconds.</em></p>
 
 <H1 style="color:#000">Monitoring QM server</H1>
 <div id="container">

@@ -66,7 +66,7 @@ def start_logger():
     "configurate and start logger"
     global logger
     # create logger
-    logging.basicConfig(level=logging.DEBUG,
+    logging.basicConfig(level=logging.DEBUG, \
         format="%(asctime)s %(levelname)s %(message)s", filename="QueueManager.log", filemode="w")
     #limit size, and add rotate
 #    logger.handlers.RotatingFileHandler(LOG_FILENAME, maxBytes=1024, backupCount=10)
@@ -166,24 +166,38 @@ class Job(object):
             logging.error("Execution failed:"+ str(e))
             retcode = -1
     def run2(self):
-        "Launch the job - Popen way - DOES NOT WORK YET"
+        "Launch the job - Popen way -"
         logfile = open("process.log",'w')
         logfile.write("coucou4\n")
-        self.script = "python"
+        Script = self.script.split() #"python"
         if True:
-            p1 = subprocess.Popen(self.script, stdout=subprocess.PIPE, stderr=subprocess.STDOUT)
+            p1 = subprocess.Popen(Script, stdout=logfile, stderr=subprocess.STDOUT)
             while True:
                 retcode = p1.poll()
                 if retcode is None:
-                    logfile.write(p1.communicate()[0])
                     time.sleep(1.0)
                 else:
                     print "job finished", retcode
                     break
-        logfile.write(p1.communicate()[0])
         logfile.close()
         return retcode
-    run = run1
+    run = run2
+    def run3(self):
+        """
+        Launch the job - not blocking
+        use self.poll() or self.wait() to monitor the end of the process
+        and self.close() to close logfile
+        """
+        self.logfile = open("process.log",'w')
+        self.logfile.write("coucou4\n")
+        Script = self.script.split() #"python"
+        self.process = subprocess.Popen(Script, stdout=self.logfile, stderr=subprocess.STDOUT)
+    def poll(self):
+        self.process.poll()
+    def wait(self):
+        self.process.wait()
+    def close(self):
+        self.logfile.close()
     def __repr__(self):
         p = ["JOB  %s"%self.name]
         for k in ["nicedate", "nb_proc", "e_mail", "info", "script", "priority", "myjobfile"]:
@@ -249,6 +263,7 @@ class QM(object):
         self.Jobs = op.join(self.QM_FOLDER,"QM_Jobs")
         self.dJobs = op.join(self.QM_FOLDER,"QM_dJobs")
         self.queue_jobs = []
+        self.running_jobs = []
         self.nap_time = 1.0
 
     def run(self):
