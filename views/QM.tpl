@@ -9,6 +9,9 @@ function timedRefresh(timeoutPeriod) {    setTimeout("location.reload(true);",ti
 <p><i>determined at {{now}}</i> - <em>This page will refresh automatically every {{refresh}} seconds.</em></p>
 
 <H1 style="color:#000">Monitoring QM server</H1>
+<p> <b>QM</b> is a simplistic Queue Manager. put your jobs into folders, drop the folders in the queue, and the jobs will be executed sequentially.</p>
+<p>Find some documentation <a href="https://bitbucket.org/delsuc/qm/overview">HERE</a></p>
+    
 <div id="container">
 <hr>
 <h2>Queuing Jobs</h2>
