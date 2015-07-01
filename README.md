@@ -222,7 +222,7 @@ This code has been written by Marc-André Delsuc (madelsuc@unistra.fr).
 # Remarks
 This is a premilinary version. There are still bugs and missing features
 ###Bugs
-- no knon bug at this stage - except an ugly html output
+- no known bug at this stage - except an ugly html output
 
  
 ###missing features - *planned* -
