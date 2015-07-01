@@ -83,7 +83,7 @@ def QM():
     "returns the front page of QM helper"
     running=0
     licence_to_kill = Licence_to_kill
-    refresh = 2  # refresh rate
+    refresh = Refresh  # refresh rate
     load = check_output(["uptime"])
     now = datetime.now().strftime("%a, %d %b %Y %H:%M:%S")
     done = job_list(QM_dJobs)
@@ -203,6 +203,8 @@ try:
     Licence_to_kill = config.getboolean( "WEB_QMserver", "Licence_to_kill")
 except:
     Licence_to_kill = False
+
+Refresh = config.getint( "WEB_QMserver", "Refresh_Rate")
 b.debug(debug)
 b.run(host=Host, port=The_Port, reloader=debug)
 

@@ -268,6 +268,14 @@ class QM(object):
         self.qJobs = op.join(self.QM_FOLDER,"QM_qJobs")
         self.Jobs = op.join(self.QM_FOLDER,"QM_Jobs")
         self.dJobs = op.join(self.QM_FOLDER,"QM_dJobs")
+        self.lostJobs = op.join(self.QM_FOLDER,"QM_lost+found")
+        for f in (self.qJobs, self.Jobs, self.dJobs, self.lostJobs):    # check set-up
+            if not os.path.exists(f):
+                os.makedirs(f)
+        for f in glob.glob(self.Jobs + "/*"):  # clean left-overs
+            b = os.path.basename(f)
+            logging.warning( 'renaming left-over job "%s" to "%s"'%(f, os.path.join(self.lostJobs, b)) )
+            os.rename(f, os.path.join(self.lostJobs, b) )
         self.queue_jobs = []
         self.running_jobs = []
         self.nap_time = 1.0
@@ -284,7 +292,7 @@ class QM(object):
                 self.queue_jobs = job_list(self.qJobs, self.dJobs)
                 if self.queue_jobs:
                     next_one = self.queue_jobs.pop()
-                    if N+next_one.nb_proc <= self.MaxNbProcessors:  # if there is room
+                    if N + min(next_one.nb_proc,self.MaxNbProcessors) <= self.MaxNbProcessors:  # if there is room
                         self.run_job(next_one)
                 self.nap()
         else:
@@ -317,8 +325,10 @@ class QM(object):
                 self.job_clean(j)
             else:
                 N +=  min(self.MaxNbProcessors, j.nb_proc)  # cannot be larger than self.MaxNbProcessors
-        if N>0:
-            print "clean_running_n_count() found ",N
+        if self.debug and N>0:
+            counttag = "%s clean_running_n_count() found %d"%(datetime.now().strftime("%d %b %Y %H:%M:%S"),N)
+            logging.debug(counttag)
+            print counttag
         return N
             
     def run_job(self, job):
