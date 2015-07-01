@@ -70,6 +70,7 @@ contains the parameters for the QueueManager program
 
 - `Host` : the hostname uder which the web page is served, if you choose `localhost` the page will available only on your local machine; if you put the complete name of your computer, the page will be seen on your local network
 - `The_Port` : the port on which the server is serving, default is 8000
+- `Refresh_Rate` : the main page is self refreshing, this is the delay in second between refreshes
 - `Licence_to_kill` : if True, the kill button will be present (to kill the running job) NOT FULLY DEBUGGED - use at your own risks
 - `Debug` : debug mode, should not be active in production mode
 
@@ -226,6 +227,5 @@ This is a premilinary version. There are still bugs and missing features
 
  
 ###missing features - *planned* -
-- the required folders should be created if missing, when launching QueueManager
 - a better way of limiting the number of processor should be installed - *an idea anybody* ?
 - a third configuration mode based on a single shell script ( *à la slurm* )
