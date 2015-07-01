@@ -6,7 +6,7 @@ The QM (QueueManager) program implements a simplistic Queue Manager, i.e. it all
 The program QM runs in background, with a very small CPU overhead, it waits for jobs to appear in the query folder, verify it, and launch it.
 Once the job is finished, the results are moved to a folder were all done jobs are waiting for you for inspection.
 
-To performed this task, jobs have to be packaged to run in a stand alone manner, indepently of the location from where they are started.
+To performed this task, jobs have to be packaged to run in a stand alone manner, independently of the location from where they are started.
 A small file giving some information describing the job has to be written.
 
 QM has been tested and used on Linux, MacOsX, and Windows. It is written in python, but can laucnh codes written in any langages
@@ -19,9 +19,10 @@ QM comes with two independent programs :
 
 
 ### Version
-`__version__ = 0.2`
+`__version__ = 0.3`
 
-The current version is working, but still preliminary. Some features are still missing (see below)
+The current version is working, but still preliminary. Some features are still missing (see below).
+Version 0.3 introduces a non-blocking mode, which enables several jobs to run in parallel in order to use all the available processors.
 
 This code is Licenced under the [Cecill 2.1](http://www.cecill.info/licences/Licence_CeCILL_V2.1-en.html) licence code
 
@@ -62,6 +63,7 @@ contains the parameters for the QueueManager program
 - `MaxNbProcessors` : the maximum number of processors allowed for one job
 - `job_file` : name of the job description file, file can be xml or cfg file types (see below)
 - `MailActive` : If MailActive is TRUE, a mail is sent when a job is finished
+- `launch_type` : The way jobs are launched - either blocking (one at a time) or non-blocking (as many jobs in parallele as MaxNbProcessors allows)
 - `Debug` : debug mode, should not be active in production mode
 
 ####WEB_QMserver
@@ -220,9 +222,10 @@ This code has been written by Marc-André Delsuc (madelsuc@unistra.fr).
 # Remarks
 This is a premilinary version. There are still bugs and missing features
 ###Bugs
-- following the advance of the job in the WEB monitor is not working yet
+- no knon bug at this stage - except an ugly html output
 
  
 ###missing features - *planned* -
 - the required folders should be created if missing, when launching QueueManager
 - a better way of limiting the number of processor should be installed - *an idea anybody* ?
+- a third configuration mode based on a single shell script ( *à la slurm* )
