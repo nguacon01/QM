@@ -23,7 +23,7 @@ import os.path as op
 import sys
 from ConfigParser import SafeConfigParser
 from QueueManager import Job
-
+from subprocess import check_output
 
 
 def job_list(path, do_sort=True):
@@ -83,13 +83,12 @@ def QM():
     "returns the front page of QM helper"
     running=0
     licence_to_kill = Licence_to_kill
-    refresh = 9  # refresh rate
+    refresh = 2  # refresh rate
+    load = check_output(["uptime"])
     now = datetime.now().strftime("%a, %d %b %Y %H:%M:%S")
     done = job_list(QM_dJobs)
     waiting = job_list(QM_qJobs)
-    r = job_list(QM_Jobs)
-    if r:
-        running = r[0]
+    runnings = job_list(QM_Jobs)
     return locals()
 
 @b.route()
@@ -195,6 +194,7 @@ Job.job_type = job_type
 ROOT = QM_FOLDER
 debug = config.getboolean( "WEB_QMserver", "Debug")
 Host = config.get( "WEB_QMserver", "Host")
+
 try:
     The_Port = config.getint( "WEB_QMserver", "The_Port")
 except:

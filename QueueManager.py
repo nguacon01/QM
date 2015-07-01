@@ -60,7 +60,7 @@ from ConfigParser import SafeConfigParser
 from xml.sax import handler, make_parser
 from datetime import datetime, timedelta
 
-__version__ = 0.2
+__version__ = 0.3
 
 def start_logger():
     "configurate and start logger"
@@ -105,6 +105,11 @@ class Job(object):
             self.parsexml()
         if self.job_type == "cfg":
             self.parsecfg()
+        for intkey in ["nb_proc", "priority", "size"]:
+            try:
+                setattr(self, intkey, int(getattr(self,intkey)))
+            except ValueError:
+                setattr(self, intkey, "undefined")
     @property
     def url(self):
         return op.join(self.loc,self.name)
@@ -152,13 +157,13 @@ class Job(object):
         tt = "- undefined -"
         try:
             for l in open(self.mylog, 'r').readlines():
-                m = re.search("time:\s*(\d+)",l)   #
+                m = re.search(r"time:\s*(\d+)",l)   #
                 if m:  tt = m.group(1)
         except:
             pass
         return tt
     def run1(self):
-        "Launch the job - shell script way"
+        "run the job - shell script way - blocking"
         Script = self.script+">> process.log 2>&1"
         try:
             retcode = subprocess.call(Script, shell=True)
@@ -166,9 +171,8 @@ class Job(object):
             logging.error("Execution failed:"+ str(e))
             retcode = -1
     def run2(self):
-        "Launch the job - Popen way -"
+        "run the job - Popen way - blocking"
         logfile = open("process.log",'w')
-        logfile.write("coucou4\n")
         Script = self.script.split() #"python"
         if True:
             p1 = subprocess.Popen(Script, stdout=logfile, stderr=subprocess.STDOUT)
@@ -182,7 +186,7 @@ class Job(object):
         logfile.close()
         return retcode
     run = run2
-    def run3(self):
+    def launch(self):
         """
         Launch the job - not blocking
         use self.poll() or self.wait() to monitor the end of the process
@@ -193,11 +197,11 @@ class Job(object):
         Script = self.script.split() #"python"
         self.process = subprocess.Popen(Script, stdout=self.logfile, stderr=subprocess.STDOUT)
     def poll(self):
-        self.process.poll()
+        return self.process.poll()
     def wait(self):
-        self.process.wait()
+        return self.process.wait()
     def close(self):
-        self.logfile.close()
+        return self.logfile.close()
     def __repr__(self):
         p = ["JOB  %s"%self.name]
         for k in ["nicedate", "nb_proc", "e_mail", "info", "script", "priority", "myjobfile"]:
@@ -244,7 +248,9 @@ class QM(object):
         self.config = SafeConfigParser()
         self.config.readfp(open(configfile))
         self.QM_FOLDER = self.config.get("QMServer", "QM_FOLDER")
-        self.MaxNbProcessors = self.config.get("QMServer", "MaxNbProcessors")
+        self.MaxNbProcessors = int(self.config.get("QMServer", "MaxNbProcessors"))
+        print "MaxNbProcessors",self.MaxNbProcessors
+        self.launch_type = self.config.get("QMServer", "launch_type")
         self.job_file = self.config.get("QMServer", "job_file")
         if self.job_file.endswith('.xml'):
             self.job_type = 'xml'
@@ -268,9 +274,22 @@ class QM(object):
 
     def run(self):
         "the way to start to QM endless loop"
-        while True :
-            next_one = self.wait_for_job()
-            self.run_job(next_one)
+        if self.launch_type == "blocking":
+            while True :
+                next_one = self.wait_for_job()
+                self.run_job(next_one)
+        elif self.launch_type == "non-blocking":
+            while True :
+                N = self.clean_running_n_count()
+                self.queue_jobs = job_list(self.qJobs, self.dJobs)
+                if self.queue_jobs:
+                    next_one = self.queue_jobs.pop()
+                    if N+next_one.nb_proc <= self.MaxNbProcessors:  # if there is room
+                        self.run_job(next_one)
+                self.nap()
+        else:
+            raise Exception("error in configuration for launch_type")
+
     def nap(self):
         "waiting method for spooling"
         time.sleep(self.nap_time)
@@ -286,12 +305,28 @@ class QM(object):
             self.nap()
         next_job = self.queue_jobs.pop()
         return next_job
-
+    def clean_running_n_count(self):
+        """
+        go through running job list, close finished ones, and count total CPU burden
+        """
+        N = 0
+        job_list = self.running_jobs
+        for j in job_list:
+            if j.poll() is not None:  # means it's finished
+                j.close()
+                self.job_clean(j)
+            else:
+                N +=  min(self.MaxNbProcessors, j.nb_proc)  # cannot be larger than self.MaxNbProcessors
+        if N>0:
+            print "clean_running_n_count() found ",N
+        return N
+            
     def run_job(self, job):
         """
         method that deals with moving job to do around and running  job.script 
-        maybe also send e-mail once the job is done ... 
+        loanch in blocking or non-blocking mode depending on global flag
         """
+        self.running_jobs.append(job)
         logging.info("Starting %s"%(job.name,) )
         logging.debug(repr(job))
         to_qJobs = op.join(self.qJobs, job.name)
@@ -304,14 +339,28 @@ class QM(object):
         if job.script == "unknown":
             job.script = 'echo no-script; pwd; sleep 10; ls -l'
             logging.warning("undefined script in info file")
-        if int(job.nb_proc) > int(self.MaxNbProcessors):    
-            msg = "Nb of processors limited to %d"%int(self.MaxNbProcessors)
+        if job.nb_proc > self.MaxNbProcessors:    
+            msg = "Nb of processors limited to %d"%self.MaxNbProcessors
             logging.warning( msg )
             with open("process.log","w") as F:
                 F.write(msg)
             job.nb_proc = self.MaxNbProcessors
         os.putenv("NB_PROC", str(job.nb_proc))  # very primitive way of limiting proc number !
-        job.run()
+        if self.launch_type == "blocking":
+            job.run()
+            self.job_clean(job)
+        if self.launch_type == "non-blocking":
+            job.launch()
+            # clean will be done later, by clean_running_n_count
+
+    def job_clean(self, job):
+        """
+        closes and move the job folder to done_Jobs
+        maybe also send e-mail once the job is done ... 
+        """
+        to_qJobs = op.join(self.qJobs, job.name)
+        to_Jobs = op.join(self.Jobs, job.name)
+        to_dJobs = op.join(self.dJobs, job.name)
         os.chdir(self.qJobs)
         os.rename(to_Jobs, to_dJobs)
         if self.mailactive:
@@ -335,6 +384,7 @@ The QueueManager
             except:
                 logging.error("Mail to %s could not be sent"%address)
         logging.info( "Job Finished")
+        self.running_jobs.remove(job)
 
 if  __name__ == '__main__':
     start_logger()

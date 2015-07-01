@@ -15,7 +15,7 @@ function timedRefresh(timeoutPeriod) {    setTimeout("location.reload(true);",ti
 
 %if waiting:
         <table CELLPADDING=5>
-        <tr><th>Name</th><th>Action</th><th>Size</th><th>Owner</th></tr>
+        <tr><th>Name</th><th>Action</th><th>Nb Proc</th><th>Size</th><th>Owner</th></tr>
         %for i in waiting:
             <tr>
                 <td><b>{{i.name}}</b></td>
@@ -23,7 +23,8 @@ function timedRefresh(timeoutPeriod) {    setTimeout("location.reload(true);",ti
                     <a href="/QM_qJobs/{{i.name}}/">view</a>
                     <a href="/delete/QM_qJobs/{{i.name}}">delete</a>
                 </center></td>
-                <td>{{i.size}} columns</td>
+                <td>{{i.nb_proc}}</td>
+                <td>{{i.size}}</td>
                 <td>{{i.e_mail}}</td>
                 <td>{{i.nicedate}}</td>
             </tr>
@@ -34,24 +35,29 @@ function timedRefresh(timeoutPeriod) {    setTimeout("location.reload(true);",ti
 %end
 </td>
 <hr>
-<h2>Running Job</h2>
+<h2>Running Jobs</h2>
+<p>Current Load <br/>
+    <i>{{load}}</i></p>
 <td>
-%if running:
+%if runnings:
         <table CELLPADDING=5>
         <tr><th>Name</th><th>Progress</th>
             %if licence_to_kill:
                 <th>Action</th>
             %end
-            <th>Size</th><th>Owner</th></tr>
-        <tr><td><b>{{running.name}}</b></td>
-        <td><div style="background-color:#EEE; width:100px;"><div style="background-color:#0E0; width:{{running.avancement()}}px;">&nbsp;</div></div></td>
-        %if licence_to_kill:
-            <td><a href="/kill/{{running.name}}">KILL</a></td>
-        %end
-        <td>{{running.size}} columns</td>
-        <td>{{running.e_mail}}</td>
-        <td>Started at :{{running.started}}</td>
-        </tr>
+            <th>Nb Proc</th><th>Size</th><th>Owner</th></tr>
+            %for running in runnings:
+                <tr><td><b>{{running.name}}</b></td>
+                <td><div style="background-color:#EEE; width:100px;"><div style="background-color:#0E0; width:{{running.avancement()}}px;">&nbsp;</div></div></td>
+                %if licence_to_kill:
+                    <td><a href="/kill/{{running.name}}">KILL</a></td>
+                %end
+                <td>{{running.nb_proc}}</td>
+                <td>{{running.size}}</td>
+                <td>{{running.e_mail}}</td>
+                <td>Started at :{{running.started}}</td>
+                </tr>
+            %end
         </table>
 %else:
         <p>None</p>
