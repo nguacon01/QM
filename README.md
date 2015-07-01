@@ -32,7 +32,7 @@ This code is Licenced under the [Cecill 2.1](http://www.cecill.info/licences/Lic
 
 ### dependences
 * The QM program and the Web monitor rely only on standard libraries. They run on python 2.7 - python 3.x not tested (and probably not working)
-* The Web monitor program requires the additional [`bottle`](http://bottlepy.org/)  program, which is packaged as a single file into this repository.
+* The Web monitor program requires the additional [bottle](http://bottlepy.org/)  program, which is packaged as a single file into this repository.
 
 ### program installation
 simply download the repository anywhere on your disk
