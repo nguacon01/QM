@@ -428,6 +428,7 @@ The QueueManager
         self.running_jobs.remove(job)
 
 if  __name__ == '__main__':
+    
     start_logger()
     q =  QM("QMserv.cfg")
     if q.mailactive:
@@ -442,5 +443,6 @@ if  __name__ == '__main__':
         logging.debug( "Dump queue content at start-up" )
         while queue_jobs:
             logging.debug( repr(queue_jobs.pop()) )
+
     # then loop for ever
     q.run()

@@ -218,5 +218,9 @@ except:
 
 Refresh = config.getint( "WEB_QMserver", "Refresh_Rate")
 b.debug(debug)
+import threading, webbrowser
+port = 8000
+url = "http://127.0.0.1:{0}".format(port)
+threading.Timer(1.25, lambda: webbrowser.open(url)).start() # open a page in the browser.
 b.run(host=Host, port=The_Port, reloader=debug)
 
