@@ -62,6 +62,8 @@ from datetime import datetime, timedelta
 
 __version__ = 0.3
 
+debug = True
+
 def start_logger():
     "configurate and start logger"
     global logger
@@ -85,7 +87,9 @@ class Job(object):
     """this class holds every thing to describe a job"""
     job_type = None  # these entries will be overwriten at start-up
     job_file = None
+    print 'in beginnng of Job'
     def __init__(self, loc, name):
+        print 'in Job'
         self.loc = loc      # QM_xJobs
         self.name = name    # the job directory name
         self.date = os.stat(self.myjobfile) [8]   # will be used for sorting - myjobfile stronger than url
@@ -100,11 +104,21 @@ class Job(object):
         self.size = "undefined"
         keylist = ["nb_proc", "e_mail", "info", "script", "priority", "size"]  # adapt here
         self.keylist = keylist
+        if debug:
+            print 'self.loc ',  self.loc
+            print 'self.name ', self.name
+            print 'self.nb_proc ', self.nb_proc
+            print 'self.e_mail ', self.e_mail
+            print 'self.info ', self.info
+            print 'self.script ', self.script
+            print 'self.priority', self.priority
+            print 'self.size', self.size
         # and get them
         if self.job_type == "xml":
             self.parsexml()
         if self.job_type == "cfg":
             self.parsecfg()
+            print 'parse cfg'
         for intkey in ["nb_proc", "priority", "size"]:
             try:
                 setattr(self, intkey, int(getattr(self,intkey)))
@@ -214,9 +228,14 @@ class Job(object):
 def job_list(path, error, do_sort=True):
     " returns a list with all jobs in path"
     ll = []
+    print 'in job list'
+    print path
+    #print "helloooo"
     for i in os.listdir(path):
+        print i
         if os.path.isdir(os.path.join(path,i)) :
             try:
+                print "JJ = Job(path,i)"
                 JJ = Job(path,i)
             except:
                 msg = "Job invalid: "+os.path.join(path,i)
@@ -227,6 +246,7 @@ def job_list(path, error, do_sort=True):
                 os.rename(os.path.join(path,i), os.path.join(error,i) )
                 logging.warning("Job %s moved to %s"%(os.path.join(path,i),error) )
             else:
+                print 'append new job to ll '
                 ll.append( JJ )
     if do_sort:
         ll.sort(reverse=True, key=lambda j: j.date)   # sort by reversed date
@@ -261,7 +281,9 @@ class QM(object):
         self.mailactive = self.config.getboolean("QMServer", "MailActive")
         Job.job_file = self.job_file    # inject into Job class
         Job.job_type = self.job_type
+        print 'self.job_type ', self.job_type
         self.ROOT = self.QM_FOLDER
+        print 'self.ROOT', self.ROOT
         self.debug = self.config.getboolean( "QMServer", "Debug")
         if self.debug:
             logging.getLogger().setLevel(logging.DEBUG)
@@ -287,12 +309,13 @@ class QM(object):
                 next_one = self.wait_for_job()
                 self.run_job(next_one)
         elif self.launch_type == "non-blocking":
+            print 'self.launch_type == "non-blocking"'
             while True :
                 N = self.clean_running_n_count()
                 self.queue_jobs = job_list(self.qJobs, self.dJobs)
                 if self.queue_jobs:
                     next_one = self.queue_jobs.pop()
-                    if N + min(next_one.nb_proc,self.MaxNbProcessors) <= self.MaxNbProcessors:  # if there is room
+                    if N + min(next_one.nb_proc, self.MaxNbProcessors) <= self.MaxNbProcessors:  # if there is room
                         self.run_job(next_one)
                 self.nap()
         else:
@@ -336,6 +359,15 @@ class QM(object):
         method that deals with moving job to do around and running  job.script 
         loanch in blocking or non-blocking mode depending on global flag
         """
+        print 'Running job'
+
+        print 'job.name ', job.name
+        print 'job.nb_proc ', job.nb_proc
+        print 'job.e_mail ', job.e_mail
+        print 'job.info ', job.info
+        print 'job.script ', job.script
+        print 'job.priority', job.priority
+        print 'job.size', job.size
         self.running_jobs.append(job)
         logging.info("Starting %s"%(job.name,) )
         logging.debug(repr(job))
@@ -379,16 +411,15 @@ class QM(object):
             to_mail = """
 The job named - {0} - started on QueueManager is finished
 
-Info : {4}
+Info : {3}
 
 The processing took :      {1}
 Result can be found here : {2}
-QueueManager host is :     {3}
 
 Virtually yours,
 
 The QueueManager
-""".format(job.name, job.time(), to_dJobs, os.uname()[1], job.info )
+""".format(job.name, job.time(), to_dJobs, job.info )
             try:
                 mail(address, subject, to_mail )
             except:

@@ -141,9 +141,6 @@ def depr(message, critical=False):
 
 
 
-
-
-
 # Exceptions and Events
 
 class BottleException(Exception):
@@ -175,9 +172,6 @@ class HTTPError(HTTPResponse):
 
     def __repr__(self):
         return ''.join(ERROR_PAGE_TEMPLATE.render(e=self))
-
-
-
 
 
 

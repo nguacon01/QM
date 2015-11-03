@@ -21,10 +21,15 @@ import glob
 import os
 import os.path as op
 import sys
+try:
+    from uptime import uptime # installed uptime module at Pasteur
+except:
+    print "no uptime module"
 from ConfigParser import SafeConfigParser
 from QueueManager import Job
 from subprocess import check_output
 
+debug = True
 
 def job_list(path, do_sort=True):
     " returns a list with all jobs in path"
@@ -84,7 +89,12 @@ def QM():
     running=0
     licence_to_kill = Licence_to_kill
     refresh = Refresh  # refresh rate
-    load = check_output(["uptime"])
+    try:
+        load = check_output(["uptime"])
+    except:
+        load = uptime()
+    else:
+        print 'no uptime module'
     now = datetime.now().strftime("%a, %d %b %Y %H:%M:%S")
     done = job_list(QM_dJobs)
     waiting = job_list(QM_qJobs)
@@ -167,8 +177,6 @@ def fichier(file):
     if debug: print file
     return b.static_file(file, root=ROOT)
 
-
-
 # read config
 configfile = "QMserv.cfg"
 config = SafeConfigParser()
@@ -177,6 +185,10 @@ QM_FOLDER = config.get( "QMServer", "QM_FOLDER")
 QM_qJobs = op.join(QM_FOLDER,"QM_qJobs")
 QM_Jobs = op.join(QM_FOLDER,"QM_Jobs")
 QM_dJobs = op.join(QM_FOLDER,"QM_dJobs")
+if debug:
+    print "QM_qJobs is ", QM_qJobs
+    print "QM_Jobs is ", QM_Jobs
+    print "QM_dJobs is ", QM_dJobs
 
 job_file = config.get("QMServer", "job_file")
 if job_file.endswith('.xml'):
@@ -186,10 +198,10 @@ elif job_file.endswith('.cfg'):
 else:
     raise Exception("job_file should be either .xml or .cfg")
 mailactive = config.getboolean("QMServer", "MailActive")
+print "mail active is ", mailactive
 
 Job.job_file = job_file    # inject into Job class
 Job.job_type = job_type
-
 
 ROOT = QM_FOLDER
 debug = config.getboolean( "WEB_QMserver", "Debug")
