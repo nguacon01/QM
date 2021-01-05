@@ -11,9 +11,7 @@ This code is Licenced under the Cecill licence code
 
 """
 
-
-import bottle as b
-from bottle import static_file
+from __future__ import print_function, division
 import time
 from datetime import datetime, timedelta
 from xml.sax import handler, make_parser
@@ -24,10 +22,17 @@ import sys
 try:
     from uptime import uptime # installed uptime module at Pasteur
 except:
-    print "no uptime module"
-from ConfigParser import SafeConfigParser
-from QueueManager import Job
+    print ("no uptime module")
 from subprocess import check_output
+import six
+from six.moves import configparser
+
+from configparser import ConfigParser
+
+import bottle as b
+from bottle import static_file
+
+from QueueManager import Job
 
 debug = True
 
@@ -45,11 +50,11 @@ def job_list(path, do_sort=True):
     if do_sort:
         ll.sort(reverse=True, key=lambda j: j.date)   # sort by reversed date
     if debug:
-        print ll
+        print (ll)
     return ll
 
 def stat(dire):
-    "compute usage statitics"
+    "compute usage statistics"
     from collections import defaultdict
     jobs = job_list(dire)
     cpu_users = defaultdict(int)    # collect cpu time
@@ -63,7 +68,7 @@ def stat(dire):
         except ValueError:
             pass
     for u in cpu_users.keys():
-        print u, job_users[u], cpu_users[u]
+        print( u, job_users[u], cpu_users[u])
     return (job_users, cpu_users)
 
 ###### pages
@@ -93,8 +98,8 @@ def QM():
         load = check_output(["uptime"])
     except:
         load = uptime()
-    else:
-        print 'no uptime module'
+#    else:
+#        print ('no uptime module')
     now = datetime.now().strftime("%a, %d %b %Y %H:%M:%S")
     done = job_list(QM_dJobs)
     waiting = job_list(QM_qJobs)
@@ -104,13 +109,13 @@ def QM():
 @b.route()
 def kill(fil="None", conf=False):  # implicite route : /kill/job(/True)  - third field is required for validation
     queue = "QM_Jobs"
-    if debug: print "kill - %s - %s - %s -"%(queue, fil, conf)
+    if debug: print ("kill - %s - %s - %s -"%(queue, fil, conf))
     if conf:
         if debug:
-            print "killed %s"%fil
-            print "kill `ps | awk '/NPKDosy/ && ! /ps/ && // {print $1}'`"
+            print ("killed %s"%fil)
+            print( "kill `ps | awk '/NPKDosy/ && ! /ps/ && // {print $1}'`")
         os.system("kill `ps | awk '/NPKDosy/ && ! /ps/ && // {print $1}'`")
-        if debug: print op.join(ROOT,queue,fil,'ldir*')
+        if debug: print (op.join(ROOT,queue,fil,'ldir*'))
         for i in glob.glob( op.join(ROOT,queue,fil,'ldir*') ):
             os.system("touch %s/dosy.gs2"%i)    # simulate end of processing
     return b.template("Confirm", queue=queue, fil=fil, conf=conf)
@@ -119,13 +124,13 @@ def kill(fil="None", conf=False):  # implicite route : /kill/job(/True)  - third
 def delete(queue="here", fil="None", conf=False):  # implicite route : /delete/here/job(/True)  - third field is required for validation
     "used to delete a job from Done Jobs list"
     import shutil
-    if debug: print "delete - %s - %s - %s -"%(queue, fil, conf)
+    if debug: print ("delete - %s - %s - %s -"%(queue, fil, conf))
     d = op.join(ROOT,queue,fil)
-    print d
+    print (d)
     if op.isdir(d):
         if conf:
             if debug:
-                print "deleting %s"%d
+                print ("deleting %s"%d)
             shutil.rmtree(d)
         return b.template("Confirm", queue=queue, fil=fil, conf=conf)
     else:
@@ -136,7 +141,7 @@ def down(fil):
     """used to force download of zip files"""
     d = op.join(ROOT,'QM_dJobs',fil,fil+".zip")
     if op.isfile(d):
-        if debug: print d
+        if debug: print (d)
         return b.static_file(d, root='/', download=fil+".zip")
     else:
         return "File %s not found"%d
@@ -174,21 +179,22 @@ def stats():
 @b.route(':file#.*#')
 def fichier(file):
     "serve all other files as static files"
-    if debug: print file
+    if debug: print (file)
     return b.static_file(file, root=ROOT)
 
 # read config
 configfile = "QMserv.cfg"
-config = SafeConfigParser()
-config.readfp(open(configfile))
+config = ConfigParser()
+with open(configfile) as F:
+    config.read_file(F)
 QM_FOLDER = config.get( "QMServer", "QM_FOLDER")
 QM_qJobs = op.join(QM_FOLDER,"QM_qJobs")
 QM_Jobs = op.join(QM_FOLDER,"QM_Jobs")
 QM_dJobs = op.join(QM_FOLDER,"QM_dJobs")
 if debug:
-    print "QM_qJobs is ", QM_qJobs
-    print "QM_Jobs is ", QM_Jobs
-    print "QM_dJobs is ", QM_dJobs
+    print( "QM_qJobs is ", QM_qJobs)
+    print( "QM_Jobs is ", QM_Jobs)
+    print ("QM_dJobs is ", QM_dJobs)
 
 job_file = config.get("QMServer", "job_file")
 if job_file.endswith('.xml'):
@@ -198,7 +204,7 @@ elif job_file.endswith('.cfg'):
 else:
     raise Exception("job_file should be either .xml or .cfg")
 mailactive = config.getboolean("QMServer", "MailActive")
-print "mail active is ", mailactive
+print ("mail active is ", mailactive)
 
 Job.job_file = job_file    # inject into Job class
 Job.job_type = job_type

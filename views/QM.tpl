@@ -1,11 +1,11 @@
-%include Head title="QM Jobs Monitor"
+%include( "Head.tpl", title="QM Jobs Monitor")
 <script type="text/JavaScript">
 <!--
 function timedRefresh(timeoutPeriod) {    setTimeout("location.reload(true);",timeoutPeriod);    }
 //   -->
 </script>
 </head>
-<body onload="JavaScript:timedRefresh({{1000*refresh}});" style= "background: url('/static/img/BigReichenbach_Turner.jpg') repeat-y;  background-size: cover;" >
+<body onload="JavaScript:timedRefresh({{1000*refresh}});" >
 <p><i>determined at {{now}}</i> - <em>This page will refresh automatically every {{refresh}} seconds.</em></p>
 
 <H1 style="color:#000">Monitoring QM server</H1>
@@ -17,22 +17,30 @@ function timedRefresh(timeoutPeriod) {    setTimeout("location.reload(true);",ti
 <h2>Queuing Jobs</h2>
 
 %if waiting:
-        <table CELLPADDING=5>
-        <tr><th>Name</th><th>Action</th><th>Nb Proc</th><th>Size</th><th>Owner</th></tr>
-        %for i in waiting:
-            <tr>
-                <td><b>{{i.name}}</b></td>
-                <td> <center>
-                    <a href="/QM_qJobs/{{i.name}}/">view</a>
-                    <a href="/delete/QM_qJobs/{{i.name}}">delete</a>
-                </center></td>
-                <td>{{i.nb_proc}}</td>
-                <td>{{i.size}}</td>
-                <td>{{i.e_mail}}</td>
-                <td>{{i.nicedate}}</td>
-            </tr>
-        %end
-        </table>
+    <table CELLPADDING=5>
+    <tr>
+        <th>Name</th>
+        <th>Action</th>
+        <th>Nb Proc</th>
+        <th>Size</th>
+        <th>Description</th>
+        <th>Owner</th>
+    </tr>
+    %for i in waiting:
+        <tr>
+            <td><b>{{i.name}}</b></td>
+            <td> <center>
+                <a href="/QM_qJobs/{{i.name}}/">view</a>
+                <a href="/delete/QM_qJobs/{{i.name}}">delete</a>
+            </center></td>
+            <td>{{i.nb_proc}}</td>
+            <td>{{i.size}}</td>
+            <td>{{i.info}}</td>
+            <td>{{i.e_mail}}</td>
+            <td>Submitted at: {{i.nicedate}}</td>
+        </tr>
+    %end
+    </table>
 %else:
         <P>None</p>
 %end
@@ -43,27 +51,38 @@ function timedRefresh(timeoutPeriod) {    setTimeout("location.reload(true);",ti
     <i>{{load}}</i></p>
 <td>
 %if runnings:
-        <table CELLPADDING=5>
-        <tr><th>Name</th><th>Progress</th>
-            %if licence_to_kill:
-                <th>Action</th>
-            %end
-            <th>Nb Proc</th><th>Size</th><th>Owner</th></tr>
-            %for running in runnings:
-                <tr><td><b>{{running.name}}</b></td>
-                <td><div style="background-color:#EEE; width:100px;"><div style="background-color:#0E0; width:{{running.avancement()}}px;">&nbsp;</div></div></td>
-                %if licence_to_kill:
-                    <td><a href="/kill/{{running.name}}">KILL</a></td>
-                %end
-                <td>{{running.nb_proc}}</td>
-                <td>{{running.size}}</td>
-                <td>{{running.e_mail}}</td>
-                <td>Started at :{{running.started}}</td>
-                </tr>
-            %end
-        </table>
+    <table CELLPADDING=5>
+    <tr><th>Name</th><th>Progress</th>
+        %if licence_to_kill:
+            <th>Action</th>
+        %end
+        <th>Nb Proc</th>
+        <th>Size</th>
+        <th>Description</th>
+        <th>Owner</th>
+    </tr>
+    %for running in runnings:
+        <tr><td><b>{{running.name}}</b></td>
+        <td>
+            <div style="background-color:#EEE; width:100px;">
+            <div style="background-color:#0E0; width:{{running.avancement()}}px;">
+                &nbsp;
+            </div>
+            </div>
+        </td>
+        %if licence_to_kill:
+            <td><a href="/kill/{{running.name}}">KILL</a></td>
+        %end
+        <td>{{running.nb_proc}}</td>
+        <td>{{running.size}}</td>
+        <td>{{running.info}}</td>
+        <td>{{running.e_mail}}</td>
+        <td>Started at: {{running.started}}</td>
+        </tr>
+    %end
+    </table>
 %else:
-        <p>None</p>
+    <p>None</p>
 %end
 </td>
 <hr>
@@ -80,7 +99,7 @@ function timedRefresh(timeoutPeriod) {    setTimeout("location.reload(true);",ti
             <a href="/QM_dJobs/{{i.name}}/">view</a>
             <a href="/delete/QM_dJobs/{{i.name}}">delete</a>
         </center></td>
-        <td>{{i.time()}} seconds</td>
+        <td>{{i.time()}}sec</td>
         <td>{{i.size}}</td>
         <td>{{i.e_mail}}</td>
         <td>{{i.nicedate}}</td>

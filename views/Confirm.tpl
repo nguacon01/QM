@@ -1,4 +1,4 @@
-%include Head title="Confirm Deletion"
+%include( "Head.tpl", title="Confirm Deletion")
 </head>
 <body>
     

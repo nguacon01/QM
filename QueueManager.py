@@ -6,6 +6,8 @@ mini QueueManager
 
 Created by Marc-Andre' on 2015-4-14 loosely inspired from an early version from 2009.
 
+Ported to python 3 in dec 2020
+
 organized around 3 folders
 
 QM_qJobs    queuing jobs
@@ -47,20 +49,22 @@ Queue Manager itself is parametrized with QMserv.cfg file
 
 This code is Licenced under the Cecill licence code
 """
-
+from __future__ import print_function, division
 import os
 import os.path as op
 import subprocess
 import time
+import datetime
 import sys
 import glob
-
+import six
 import logging
-from ConfigParser import SafeConfigParser
+from six.moves import configparser
+from configparser import ConfigParser
 from xml.sax import handler, make_parser
 from datetime import datetime, timedelta
 
-__version__ = 0.3
+__version__ = 0.4
 
 debug = True
 
@@ -87,9 +91,9 @@ class Job(object):
     """this class holds every thing to describe a job"""
     job_type = None  # these entries will be overwriten at start-up
     job_file = None
-    print 'in beginnng of Job'
+    print ('in beginnng of Job')
     def __init__(self, loc, name):
-        print 'in Job'
+        print ('in Job')
         self.loc = loc      # QM_xJobs
         self.name = name    # the job directory name
         self.date = os.stat(self.myjobfile) [8]   # will be used for sorting - myjobfile stronger than url
@@ -105,20 +109,20 @@ class Job(object):
         keylist = ["nb_proc", "e_mail", "info", "script", "priority", "size"]  # adapt here
         self.keylist = keylist
         if debug:
-            print 'self.loc ',  self.loc
-            print 'self.name ', self.name
-            print 'self.nb_proc ', self.nb_proc
-            print 'self.e_mail ', self.e_mail
-            print 'self.info ', self.info
-            print 'self.script ', self.script
-            print 'self.priority', self.priority
-            print 'self.size', self.size
+            print ('self.loc ',  self.loc)
+            print ('self.name ', self.name)
+            print ('self.nb_proc ', self.nb_proc)
+            print ('self.e_mail ', self.e_mail)
+            print ('self.info ', self.info)
+            print ('self.script ', self.script)
+            print ('self.priority', self.priority)
+            print ('self.size', self.size)
         # and get them
         if self.job_type == "xml":
             self.parsexml()
         if self.job_type == "cfg":
             self.parsecfg()
-            print 'parse cfg'
+            print ('parse cfg')
         for intkey in ["nb_proc", "priority", "size"]:
             try:
                 setattr(self, intkey, int(getattr(self,intkey)))
@@ -135,8 +139,9 @@ class Job(object):
         return op.join(self.loc, self.name, self.job_file)
     def parsecfg(self):
         """    load info.cfg files    """
-        config = SafeConfigParser()
-        config.readfp( open(self.myjobfile) )
+        config = ConfigParser()
+        with open(self.myjobfile) as F:
+            config.read_file( F )
         for k in self.keylist:
             if config.has_option("QMOptions", k):
                 val = config.get("QMOptions", k)
@@ -154,34 +159,31 @@ class Job(object):
         """   analyse log file, return avancement as a string 0 ... 100   """
         import re
         av = 0.0
-        try:
-            for l in open(self.mylog,'r').readlines():
-                print l
+        with open(self.mylog,'r') as F:
+            for l in F.readlines():
+#                print (l)
                 m = re.search(r"\s+(\d+)\s*/\s*(\d+)",l)   ### Processing col 8154   5 / 32
                 if m:
-                    print m.group(1), m.group(2)
+#                    print (m.group(1), m.group(2))
                     av = float(m.group(1))/float(m.group(2))
-        except:
-            pass
-        print "avancement", av
+        if debug: print ("avancement", av)
         return "%.f"%(100.0*av)
     def time(self):
         """   analyse log file, return elapsed time as a string """
         import re
         tt = "- undefined -"
-        try:
-            for l in open(self.mylog, 'r').readlines():
+        with open(self.mylog, 'r') as F:
+            for l in F.readlines():
                 m = re.search(r"time:\s*(\d+)",l)   #
-                if m:  tt = m.group(1)
-        except:
-            pass
+                if m:
+                    tt = m.group(1)
         return tt
     def run1(self):
         "run the job - shell script way - blocking"
         Script = self.script+">> process.log 2>&1"
         try:
             retcode = subprocess.call(Script, shell=True)
-        except OSError, e:
+        except OSError as e:
             logging.error("Execution failed:"+ str(e))
             retcode = -1
     def run2(self):
@@ -195,7 +197,7 @@ class Job(object):
                 if retcode is None:
                     time.sleep(1.0)
                 else:
-                    print "job finished", retcode
+                    print ("job finished", retcode)
                     break
         logfile.close()
         return retcode
@@ -228,14 +230,13 @@ class Job(object):
 def job_list(path, error, do_sort=True):
     " returns a list with all jobs in path"
     ll = []
-    print 'in job list'
-    print path
-    #print "helloooo"
+    if debug: print ('in job list',path)
+    #print ("helloooo")
     for i in os.listdir(path):
-        print i
+        if debug: print (i)
         if os.path.isdir(os.path.join(path,i)) :
             try:
-                print "JJ = Job(path,i)"
+                print ("JJ = Job(path,i)")
                 JJ = Job(path,i)
             except:
                 msg = "Job invalid: "+os.path.join(path,i)
@@ -246,7 +247,7 @@ def job_list(path, error, do_sort=True):
                 os.rename(os.path.join(path,i), os.path.join(error,i) )
                 logging.warning("Job %s moved to %s"%(os.path.join(path,i),error) )
             else:
-                print 'append new job to ll '
+                print ('append new job to ll ')
                 ll.append( JJ )
     if do_sort:
         ll.sort(reverse=True, key=lambda j: j.date)   # sort by reversed date
@@ -265,11 +266,12 @@ class QM(object):
         logging.info("QueueManager Initialization")
         # read config
         self.configfile = configfile
-        self.config = SafeConfigParser()
-        self.config.readfp(open(configfile))
+        self.config = ConfigParser()
+        with open(configfile) as F:
+            self.config.read_file(F)
         self.QM_FOLDER = self.config.get("QMServer", "QM_FOLDER")
         self.MaxNbProcessors = int(self.config.get("QMServer", "MaxNbProcessors"))
-        print "MaxNbProcessors",self.MaxNbProcessors
+        print ("MaxNbProcessors",self.MaxNbProcessors)
         self.launch_type = self.config.get("QMServer", "launch_type")
         self.job_file = self.config.get("QMServer", "job_file")
         if self.job_file.endswith('.xml'):
@@ -281,9 +283,9 @@ class QM(object):
         self.mailactive = self.config.getboolean("QMServer", "MailActive")
         Job.job_file = self.job_file    # inject into Job class
         Job.job_type = self.job_type
-        print 'self.job_type ', self.job_type
+        print ('self.job_type ', self.job_type)
         self.ROOT = self.QM_FOLDER
-        print 'self.ROOT', self.ROOT
+        print ('self.ROOT', self.ROOT)
         self.debug = self.config.getboolean( "QMServer", "Debug")
         if self.debug:
             logging.getLogger().setLevel(logging.DEBUG)
@@ -300,7 +302,7 @@ class QM(object):
             os.rename(f, os.path.join(self.lostJobs, b) )
         self.queue_jobs = []
         self.running_jobs = []
-        self.nap_time = 1.0
+        self.nap_time = 3.0       # in second
 
     def run(self):
         "the way to start to QM endless loop"
@@ -309,7 +311,7 @@ class QM(object):
                 next_one = self.wait_for_job()
                 self.run_job(next_one)
         elif self.launch_type == "non-blocking":
-            print 'self.launch_type == "non-blocking"'
+            print ('self.launch_type == "non-blocking"')
             while True :
                 N = self.clean_running_n_count()
                 self.queue_jobs = job_list(self.qJobs, self.dJobs)
@@ -351,7 +353,7 @@ class QM(object):
         if self.debug and N>0:
             counttag = "%s clean_running_n_count() found %d"%(datetime.now().strftime("%d %b %Y %H:%M:%S"),N)
             logging.debug(counttag)
-            print counttag
+            print (counttag)
         return N
             
     def run_job(self, job):
@@ -359,15 +361,14 @@ class QM(object):
         method that deals with moving job to do around and running  job.script 
         loanch in blocking or non-blocking mode depending on global flag
         """
-        print 'Running job'
+        print ('############ Running job', job.name)
 
-        print 'job.name ', job.name
-        print 'job.nb_proc ', job.nb_proc
-        print 'job.e_mail ', job.e_mail
-        print 'job.info ', job.info
-        print 'job.script ', job.script
-        print 'job.priority', job.priority
-        print 'job.size', job.size
+        print ('job.nb_proc ', job.nb_proc)
+        print ('job.e_mail ', job.e_mail)
+        print ('job.info ', job.info)
+        print ('job.script ', job.script)
+        print ('job.priority', job.priority)
+        print ('job.size', job.size)
         self.running_jobs.append(job)
         logging.info("Starting %s"%(job.name,) )
         logging.debug(repr(job))
@@ -400,10 +401,10 @@ class QM(object):
         closes and move the job folder to done_Jobs
         maybe also send e-mail once the job is done ... 
         """
-        to_qJobs = op.join(self.qJobs, job.name)
         to_Jobs = op.join(self.Jobs, job.name)
-        to_dJobs = op.join(self.dJobs, job.name)
-        os.chdir(self.qJobs)
+        now = datetime.now().isoformat(timespec='seconds')
+        to_dJobs = op.join(self.dJobs, now+'-'+job.name)
+        os.chdir(self.qJobs)         # we might be in to_Jobs, so we cd away.
         os.rename(to_Jobs, to_dJobs)
         if self.mailactive:
             address = job.e_mail

@@ -1,4 +1,4 @@
-%include Head title="Usage Statitics"
+%include( "Head.tpl", title="Usage Statitics")
 </head>
 <body>
 <div id="container">
