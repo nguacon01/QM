@@ -2,6 +2,7 @@
 
 # Presentation
 The QM (QueueManager) program implements a simplistic Queue Manager, i.e. it allows to run programs in batch, with a queueing system.
+It is pure python and has no external dependency but bottle which is included in this repository.
 
 The program QM runs in background, with a very small CPU overhead, it waits for jobs to appear in the query folder, verify it, and launch it.
 Once the job is finished, the results are moved to a folder were all done jobs are waiting for you for inspection.
@@ -153,7 +154,7 @@ Here is an example job (we assume `QueueManager.py` is configured and running)
 
 ```
 [Proc]
-Size : 10
+Size : 50
 
 [QMOptions]
 nb_proc : 4
@@ -166,7 +167,8 @@ script : python test.py proc_config.cfg
 
 ```
 import sys
-sys.path.insert(0,'spike.zip')
+import time
+sys.path.insert(0,'spike.zip')    # to show how a big project can be included
 from spike.NPKConfigParser import NPKConfigParser
 
 '''
@@ -179,14 +181,14 @@ def PROC(config):
         print ("processing %d / %d"%(i+1,size) )  # produces : processing i / size   
         sys.stdout.flush()                        # this updates the log file, and allows to monitor how far we are so far
         total = total  + i*(total+i)
-        time.sleep(10./size)                # this is just to slow the program down - for demo
+        time.sleep(30./size)                # this is just to slow the program down - for demo
     with open('results.txt','w') as F:
         F.write("Final result is :\n%d"%total)
-    print "Done"
+    print ("Done")
 if __name__=='__main__':
     configfile = sys.argv[1]
     config = NPKConfigParser()
-    config.read_file(configfile)
+    config.read(configfile)
     processing = PROC(config)
 ```
 

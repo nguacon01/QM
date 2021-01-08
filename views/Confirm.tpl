@@ -19,13 +19,13 @@
     <h2>Please confirm deletion of Job {{fil}} ?</h2>
     %if queue == "QM_dJobs":
         <h3>in Done Jobs queue</h3>
-        <a href="/delete/{{queue}}/{{fil}}/True">DELETE</a>
+        <a href="/delete/{{queue}}/{{fil}}?conf=True">DELETE</a>
     %elif queue == "QM_Jobs":
         <h3>in Running Jobs</h3>
-        <a href="/kill/{{fil}}/True">KILL</a>
+        <a href="/kill/{{fil}}?conf=True">KILL</a>
     %elif queue == "QM_qJobs":
         <h3>in Queueing Jobs</h3>
-        <a href="/delete/{{queue}}/{{fil}}/True">DELETE</a>
+        <a href="/delete/{{queue}}/{{fil}}?conf=True">DELETE</a>
     %end
     &nbsp; &nbsp; 
     <a href="/QM/">Return</a>

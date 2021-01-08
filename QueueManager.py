@@ -57,23 +57,20 @@ import time
 import datetime
 import sys
 import glob
-import six
 import logging
-from six.moves import configparser
 from configparser import ConfigParser
 from xml.sax import handler, make_parser
 from datetime import datetime, timedelta
 
 __version__ = 0.4
 
-debug = True
+debug = False
 
 def start_logger():
     "configurate and start logger"
-    global logger
     # create logger
-    logging.basicConfig(level=logging.DEBUG, \
-        format="%(asctime)s %(levelname)s %(message)s", filename="QueueManager.log", filemode="w")
+    logging.basicConfig(level=logging.INFO, \
+        format="%(asctime)s %(levelname)s %(message)s", filename="QueueManager.log")
     #limit size, and add rotate
 #    logger.handlers.RotatingFileHandler(LOG_FILENAME, maxBytes=1024, backupCount=10)
 
@@ -93,7 +90,6 @@ class Job(object):
     job_file = None
     print ('in beginnng of Job')
     def __init__(self, loc, name):
-        print ('in Job')
         self.loc = loc      # QM_xJobs
         self.name = name    # the job directory name
         self.date = os.stat(self.myjobfile) [8]   # will be used for sorting - myjobfile stronger than url
@@ -122,7 +118,6 @@ class Job(object):
             self.parsexml()
         if self.job_type == "cfg":
             self.parsecfg()
-            print ('parse cfg')
         for intkey in ["nb_proc", "priority", "size"]:
             try:
                 setattr(self, intkey, int(getattr(self,intkey)))
@@ -182,25 +177,33 @@ class Job(object):
         "run the job - shell script way - blocking"
         Script = self.script+">> process.log 2>&1"
         try:
-            retcode = subprocess.call(Script, shell=True)
+            self.retcode = subprocess.call(Script, shell=True)
         except OSError as e:
             logging.error("Execution failed:"+ str(e))
-            retcode = -1
+            self.retcode = -1
     def run2(self):
         "run the job - Popen way - blocking"
         logfile = open("process.log",'w')
+        print('Job started by QM at: ',datetime.now().isoformat(timespec='seconds'), file=logfile)
+        logfile.flush()
         Script = self.script.split() #"python"
         if True:
-            p1 = subprocess.Popen(Script, stdout=logfile, stderr=subprocess.STDOUT)
-            while True:
-                retcode = p1.poll()
-                if retcode is None:
+            try:
+                p1 = subprocess.Popen(Script, stdout=logfile, stderr=subprocess.STDOUT)
+                ok = True
+            except:
+                ok = False
+                print('Script could not be run, aborted', file=logfile)
+                self.retcode = -1
+            while ok:
+                self.retcode = p1.poll()
+                if self.retcode is None:
                     time.sleep(1.0)
                 else:
-                    print ("job finished", retcode)
+                    print ("Job finished at: %s with code %d"%(datetime.now().isoformat(timespec='seconds'), self.retcode), file=logfile)
                     break
         logfile.close()
-        return retcode
+        return self.retcode
     run = run2
     def launch(self):
         """
@@ -209,7 +212,6 @@ class Job(object):
         and self.close() to close logfile
         """
         self.logfile = open("process.log",'w')
-        self.logfile.write("coucou4\n")
         Script = self.script.split() #"python"
         self.process = subprocess.Popen(Script, stdout=self.logfile, stderr=subprocess.STDOUT)
     def poll(self):
@@ -231,12 +233,11 @@ def job_list(path, error, do_sort=True):
     " returns a list with all jobs in path"
     ll = []
     if debug: print ('in job list',path)
-    #print ("helloooo")
     for i in os.listdir(path):
         if debug: print (i)
         if os.path.isdir(os.path.join(path,i)) :
             try:
-                print ("JJ = Job(path,i)")
+                if debug: print ("JJ = Job(path,i)")
                 JJ = Job(path,i)
             except:
                 msg = "Job invalid: "+os.path.join(path,i)
@@ -247,7 +248,7 @@ def job_list(path, error, do_sort=True):
                 os.rename(os.path.join(path,i), os.path.join(error,i) )
                 logging.warning("Job %s moved to %s"%(os.path.join(path,i),error) )
             else:
-                print ('append new job to ll ')
+                if debug: print ('append new job to ll ')
                 ll.append( JJ )
     if do_sort:
         ll.sort(reverse=True, key=lambda j: j.date)   # sort by reversed date
@@ -297,9 +298,9 @@ class QM(object):
             if not os.path.exists(f):
                 os.makedirs(f)
         for f in glob.glob(self.Jobs + "/*"):  # clean left-overs
-            b = os.path.basename(f)
+            b = datetime.now().isoformat(timespec='seconds') + os.path.basename(f)
             logging.warning( 'renaming left-over job "%s" to "%s"'%(f, os.path.join(self.lostJobs, b)) )
-            os.rename(f, os.path.join(self.lostJobs, b) )
+            os.rename(f, os.path.join(self.lostJobs, b ) )
         self.queue_jobs = []
         self.running_jobs = []
         self.nap_time = 3.0       # in second
@@ -361,16 +362,15 @@ class QM(object):
         method that deals with moving job to do around and running  job.script 
         loanch in blocking or non-blocking mode depending on global flag
         """
-        print ('############ Running job', job.name)
-
-        print ('job.nb_proc ', job.nb_proc)
-        print ('job.e_mail ', job.e_mail)
-        print ('job.info ', job.info)
-        print ('job.script ', job.script)
-        print ('job.priority', job.priority)
-        print ('job.size', job.size)
+        if debug:
+            print ('QM [%s] Starting job "%s" by %s'%(datetime.now().isoformat(timespec='seconds'), job.name, job.e_mail))
+            print ('job.nb_proc ', job.nb_proc)
+            print ('job.info ', job.info)
+            print ('job.script ', job.script)
+            print ('job.priority', job.priority)
+            print ('job.size', job.size)
         self.running_jobs.append(job)
-        logging.info("Starting %s"%(job.name,) )
+        logging.info('Starting job "%s" by %s'%(job.name,job.e_mail) )
         logging.debug(repr(job))
         to_qJobs = op.join(self.qJobs, job.name)
         to_Jobs = op.join(self.Jobs, job.name)
@@ -390,7 +390,7 @@ class QM(object):
             job.nb_proc = self.MaxNbProcessors
         os.putenv("NB_PROC", str(job.nb_proc))  # very primitive way of limiting proc number !
         if self.launch_type == "blocking":
-            job.run()
+            retcode = job.run()
             self.job_clean(job)
         if self.launch_type == "non-blocking":
             job.launch()
@@ -425,7 +425,7 @@ The QueueManager
                 mail(address, subject, to_mail )
             except:
                 logging.error("Mail to %s could not be sent"%address)
-        logging.info( "Job Finished")
+        logging.info('Finished job "%s" with code %d'%(job.name, job.retcode))
         self.running_jobs.remove(job)
 
 if  __name__ == '__main__':
@@ -433,11 +433,7 @@ if  __name__ == '__main__':
     start_logger()
     q =  QM("QMserv.cfg")
     if q.mailactive:
-        try:
-            from spike.util.sendgmail import mail    # if spike available
-        except ImportError:
-            from sendgmail import mail               # otherwise, copy it here
-            logging.warning( "Using local version of sendgmail.mail")
+        from sendgmail import mail               # otherwise, copy it here
     queue_jobs = job_list(q.qJobs, q.dJobs)
     # print listing
     if q.debug:

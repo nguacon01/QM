@@ -10,7 +10,7 @@ function timedRefresh(timeoutPeriod) {    setTimeout("location.reload(true);",ti
 
 <H1 style="color:#000">Monitoring QM server</H1>
 <p> <b>QM</b> is a simplistic Queue Manager. put your jobs into folders, drop the folders in the queue, and the jobs will be executed sequentially.</p>
-<p>Find some documentation <a href="https://bitbucket.org/delsuc/qm/overview">HERE</a></p>
+<p>Find some documentation <a href="https://github.com/delsuc/QM/blob/master/README.md">HERE</a></p>
     
 <div id="container">
 <hr>
@@ -20,7 +20,9 @@ function timedRefresh(timeoutPeriod) {    setTimeout("location.reload(true);",ti
     <table CELLPADDING=5>
     <tr>
         <th>Name</th>
-        <th>Action</th>
+        %if display_details:
+            <th>Action</th>
+        %end
         <th>Nb Proc</th>
         <th>Size</th>
         <th>Description</th>
@@ -29,10 +31,14 @@ function timedRefresh(timeoutPeriod) {    setTimeout("location.reload(true);",ti
     %for i in waiting:
         <tr>
             <td><b>{{i.name}}</b></td>
-            <td> <center>
-                <a href="/QM_qJobs/{{i.name}}/">view</a>
-                <a href="/delete/QM_qJobs/{{i.name}}">delete</a>
-            </center></td>
+            %if display_details:
+                <td> <center>
+                    <a href="/QM_qJobs/{{i.name}}/">view</a>
+                    %if delete_jobs:
+                        <a href="/delete/QM_qJobs/{{i.name}}">delete</a>
+                    %end
+                </center></td>
+            %end
             <td>{{i.nb_proc}}</td>
             <td>{{i.size}}</td>
             <td>{{i.info}}</td>
@@ -89,16 +95,30 @@ function timedRefresh(timeoutPeriod) {    setTimeout("location.reload(true);",ti
 <h2>Done Jobs</h2>
 
 <table CELLPADDING=5>
-<tr><th>Name</th><th>zip file</th><th>Action</th><th>Duration</th><th>Size</th><th>Owner</th><th>Date</th></tr>
+<tr>
+    <th>Name</th>
+    %if display_details:
+        <th>zip file</th>
+        <th>Action</th>
+    %end
+    <th>Duration</th>
+    <th>Size</th>
+    <th>Owner</th>
+    <th>Date</th>
+</tr>
 
 %for i in done:
     <tr>
         <td><b>{{i.name}}</b></td>
-        <td> <a href="/download/{{i.name}}">download</a></td>
-        <td> <center>
-            <a href="/QM_dJobs/{{i.name}}/">view</a>
-            <a href="/delete/QM_dJobs/{{i.name}}">delete</a>
-        </center></td>
+        %if display_details:
+            <td> <a href="/download/{{i.name}}">download</a></td>
+            <td> <center>
+                <a href="/QM_dJobs/{{i.name}}/">view</a>
+                %if delete_jobs:
+                    <a href="/delete/QM_dJobs/{{i.name}}">delete</a>
+                %end
+            </center></td>
+        %end
         <td>{{i.time()}}sec</td>
         <td>{{i.size}}</td>
         <td>{{i.e_mail}}</td>

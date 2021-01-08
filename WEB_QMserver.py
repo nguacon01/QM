@@ -24,8 +24,6 @@ try:
 except:
     print ("no uptime module")
 from subprocess import check_output
-import six
-from six.moves import configparser
 
 from configparser import ConfigParser
 
@@ -34,7 +32,7 @@ from bottle import static_file
 
 from QueueManager import Job
 
-debug = True
+debug = False
 
 def job_list(path, do_sort=True):
     " returns a list with all jobs in path"
@@ -75,15 +73,14 @@ def stat(dire):
 # route defines URL
 # view defines template file to use
 
-@b.route('/static/:filename#.*#')
+@b.route('/static/<filename:path>')
 def static(filename):
     return static_file(filename, root='views/static/')
     
 @b.route('/test')
 def testl():
-    id = b.request.GET['id']
-    q = b.request.query_string
-    return q, "\nId = ",id
+    id = b.request.query.id or 'toto'
+    return "Id = ",id
     
 @b.route('/')
 @b.route('/QM')
@@ -94,6 +91,8 @@ def QM():
     running=0
     licence_to_kill = Licence_to_kill
     refresh = Refresh  # refresh rate
+    display_details = Display_details
+    delete_jobs = Delete_Jobs
     try:
         load = check_output(["uptime"])
     except:
@@ -106,27 +105,29 @@ def QM():
     runnings = job_list(QM_Jobs)
     return locals()
 
-@b.route()
-def kill(fil="None", conf=False):  # implicite route : /kill/job(/True)  - third field is required for validation
+@b.route('/kill/<fil>')
+def kill(fil="None", conf=False):  # implicite route : /kill/job(?conf=True)  - third field is required for validation
     queue = "QM_Jobs"
+    conf = b.request.query.conf or False
     if debug: print ("kill - %s - %s - %s -"%(queue, fil, conf))
     if conf:
+        cmd = "ps | awk '/NPKDosy/ && ! /ps/ && // {print $1}"
         if debug:
             print ("killed %s"%fil)
-            print( "kill `ps | awk '/NPKDosy/ && ! /ps/ && // {print $1}'`")
-        os.system("kill `ps | awk '/NPKDosy/ && ! /ps/ && // {print $1}'`")
+            print( cmd )
+        os.system(cmd)
         if debug: print (op.join(ROOT,queue,fil,'ldir*'))
         for i in glob.glob( op.join(ROOT,queue,fil,'ldir*') ):
             os.system("touch %s/dosy.gs2"%i)    # simulate end of processing
     return b.template("Confirm", queue=queue, fil=fil, conf=conf)
 
-@b.route()
-def delete(queue="here", fil="None", conf=False):  # implicite route : /delete/here/job(/True)  - third field is required for validation
-    "used to delete a job from Done Jobs list"
+@b.route('/delete/<queue>/<fil>')
+def delete(queue="here", fil="None", conf=False):  # implicite route : /delete/here/job(?conf=True)  - third field is required for validation
+    "used to delete a job from Query/Done Jobs list"
     import shutil
+    conf = b.request.query.conf or False
     if debug: print ("delete - %s - %s - %s -"%(queue, fil, conf))
     d = op.join(ROOT,queue,fil)
-    print (d)
     if op.isdir(d):
         if conf:
             if debug:
@@ -146,23 +147,26 @@ def down(fil):
     else:
         return "File %s not found"%d
 
-@b.route(':name#.+/$#')
+@b.route('/QM_dJobs/<name:path>')
 @b.view('QM_dJobs')
 def test(name):
     "returns the content of directories"
-    import os.path as op
     now = datetime.now().strftime("%a, %d %b %Y %H:%M:%S")
     fich = []
     dire = []
-    base = op.join(ROOT,name)
+    base = op.join(QM_dJobs,name)
+    if debug: print("base: ",base)
     lb = len(base)
-    path = op.join(base,"*")
-    for f in glob.glob(path):
-        if op.isfile(f):
-            fich.append(f[lb:])
-        if op.isdir(f):
-            dire.append(f[lb:])
-    return locals()     # all local variables can now be used in the template
+    if op.isfile(base):
+        return b.static_file(base, root=ROOT)
+    if op.isdir(base):
+        path = op.join(base,"*")
+        for f in glob.glob(path):
+            if op.isfile(f):
+                fich.append(f[lb:])
+            if op.isdir(f):
+                dire.append(f[lb:])
+        return locals()     # all local variables can now be used in the template
 
 @b.route()
 @b.view('stats')
@@ -176,11 +180,18 @@ def stats():
     meanjob = timedelta(seconds=int(float(cputotal)/jobtotal))
     return locals()
 
-@b.route(':file#.*#')
-def fichier(file):
+@b.route('/view/<name:path>')
+def fichier(name):
     "serve all other files as static files"
-    if debug: print (file)
-    return b.static_file(file, root=ROOT)
+    from mimetypes import guess_type
+    if name[-3:] in ('log', 'cfg', 'txt', '.py', '.sh'):
+        mime = 'text/plain'
+    else:
+        mime = 'auto'
+    if debug:
+        print ('view:',name)
+        print ('mime:',mime)
+    return b.static_file(name, root=ROOT, mimetype=mime)
 
 # read config
 configfile = "QMserv.cfg"
@@ -223,6 +234,9 @@ except:
     Licence_to_kill = False
 
 Refresh = config.getint( "WEB_QMserver", "Refresh_Rate")
+Display_details = config.getboolean( "WEB_QMserver", "Display_details")
+Delete_Jobs = config.getboolean( "WEB_QMserver", "Delete_Jobs")
+
 b.debug(debug)
 import threading, webbrowser
 port = 8000

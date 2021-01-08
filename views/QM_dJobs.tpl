@@ -9,7 +9,7 @@
 	<h2>files</h2>
 	<ul>
 	%for i in fich:
-	    <li><a href="{{i}}">{{i}}</a></li>
+	    <li><a href="/view/QM_dJobs/{{name}}/{{i}}">{{i}}</a></li>
 	%end
 	</ul>
 	<hr/>

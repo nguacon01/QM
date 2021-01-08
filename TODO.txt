@@ -1,0 +1,11 @@
+QM
+- try sur le run/Popen (line 192)
+- finish/validate non-blocking mode
+- use correctly logging
+
+WEB:
+- mieux gérer les dates
+- mieux gérer les mime 
+- route
+    - download
+    - view qJobs
