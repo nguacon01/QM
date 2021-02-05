@@ -17,15 +17,15 @@ class Jobs(object):
         """
         jobs_folder = ''
         if type==QUEUE_JOBS:
-            return os.path.join(self.QM.QM_FOLDER, QUEUE_JOBS)
+            return os.path.join(self.QM.Qm_Folder, QUEUE_JOBS)
         elif type==ERROR_JOBS:
-            return os.path.join(self.QM.QM_FOLDER, ERROR_JOBS)
+            return os.path.join(self.QM.Qm_Folder, ERROR_JOBS)
         elif type==DONE_JOBS:
-            return os.path.join(self.QM.QM_FOLDER, DONE_JOBS)
+            return os.path.join(self.QM.Qm_Folder, DONE_JOBS)
         elif type==RUNNING_JOBS:
-            return os.path.join(self.QM.QM_FOLDER, RUNNING_JOBS)
+            return os.path.join(self.QM.Qm_Folder, RUNNING_JOBS)
         else:
-            return self.QM.QM_FOLDER
+            return self.QM.Qm_Folder
             
     def get_jobs(self, type=None):
         """

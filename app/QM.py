@@ -2,7 +2,7 @@ from configparser import ConfigParser
 from . import logging
 from datetime import datetime
 import sys
-from .Jobs import DONE_JOBS, Jobs, QUEUE_JOBS, RUNNING_JOBS
+from .Jobs import DONE_JOBS, Jobs, QUEUE_JOBS, RUNNING_JOBS, ERROR_JOBS
 from .Mail import Email
 import os
 import time
@@ -20,7 +20,7 @@ class QM(object):
     """
     def __init__(self, config):
         self.config = config
-        self.QM_FOLDER = self.config.get("QMServer", "QM_FOLDER")
+        self.Qm_Folder = self.config.get("QMServer", "QM_FOLDER")
         self.MaxNbProcessors = int(self.config.get("QMServer", "MaxNbProcessors"))
         self.launch_type = self.config.get("QMServer", "launch_type")
         self.job_file = self.config.get("QMServer", "job_file")
@@ -38,7 +38,7 @@ class QM(object):
         self.nap_time = 3.0       # in second
     
     def __str__(self):
-        return f"Queue with {self.MaxNbProcessors} processor, job type is {self.job_type}"
+        return f"Queue with {self.MaxNbProcessors} processor, job type is {self.job_type}, with {len(self.jobs.get_jobs(type=QUEUE_JOBS))} jobs are in queue"
     __repr__ = __str__
 
 
@@ -109,8 +109,8 @@ class QM(object):
         # self.running_jobs.append(job)
         logging.info('Starting job "%s" by %s'%(job.name,job.e_mail) )
         logging.debug(repr(job))
-        to_qJobs = op.join(self.QM_FOLDER, QUEUE_JOBS, job.name)
-        to_Jobs = op.join(self.QM_FOLDER, RUNNING_JOBS, job.name)
+        to_qJobs = op.join(self.Qm_Folder, QUEUE_JOBS, job.name)
+        to_Jobs = op.join(self.Qm_Folder, RUNNING_JOBS, job.name)
         # to_dJobs = op.join(self.QM_FOLDER, DONE_JOBS, job.name)
         
         os.rename(to_qJobs, to_Jobs)    # First move job to work dir
@@ -138,28 +138,33 @@ class QM(object):
         closes and move the job folder to done_Jobs
         maybe also send e-mail once the job is done ... 
         """
-        to_Jobs = op.join(self.QM_FOLDER, RUNNING_JOBS, job.name)
+        to_Jobs = op.join(self.Qm_Folder, RUNNING_JOBS, job.name)
         now = datetime.now().isoformat(timespec='seconds')
-        to_dJobs = op.join(self.QM_FOLDER, DONE_JOBS, now+'-'+job.name)
+        to_dJobs = op.join(self.Qm_Folder, DONE_JOBS, now+'-'+job.name)
+        to_errorJobs = op.join(self.Qm_Folder, ERROR_JOBS, now+'-'+job.name)
         # os.chdir(self.qJobs)         # we might be in to_Jobs, so we cd away.
         os.chdir(to_Jobs)
-        os.rename(to_Jobs, to_dJobs)
+
+        if job.retcode != 0:
+            os.rename(to_Jobs, to_errorJobs)
+        else:
+            os.rename(to_Jobs, to_dJobs)
         
         if self.mailactive:
             receiver = job.e_mail
             subject = "QM Job - %s - finished"%job.name
             body = """
-The job named - {0} - started on QueueManager is finished
+                The job named - {0} - started on QueueManager is finished
 
-Info : {3}
+                Info : {3}
 
-The processing took :      {1}
-Result can be found here : {2}
+                The processing took :      {1}
+                Result can be found here : {2}
 
-Virtually yours,
+                Virtually yours,
 
-The QueueManager
-""".format(job.name, 'job.time()', to_dJobs, job.info )
+                The QueueManager
+            """.format(job.name, 'job.time()', to_dJobs, job.info )
             try:
                 info_mail = Email(config = self.config, receiver=receiver, body=body)
                 info_mail.sendMail()

@@ -432,8 +432,8 @@ if  __name__ == '__main__':
     
     start_logger()
     q =  QM("QMserv.cfg")
-    if q.mailactive:
-        from sendgmail import mail               # otherwise, copy it here
+    # if q.mailactive:
+    #     from sendgmail import mail               # otherwise, copy it here
     queue_jobs = job_list(q.qJobs, q.dJobs)
     # print listing
     if q.debug:

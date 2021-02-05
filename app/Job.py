@@ -126,13 +126,22 @@ class Job(object):
         logfile.flush()
         Script = self.script.split() #"python"
         if True:
-            try:
-                p1 = subprocess.Popen(Script, stdout=logfile, stderr=subprocess.STDOUT)
-                ok = True
-            except:
+            # sub process in which we run job's scripts
+            p1 = subprocess.Popen(Script, stdout=logfile, stderr=subprocess.STDOUT)
+            response = p1.communicate()
+            self.retcode = p1.returncode
+            ok =  True
+            if self.retcode != 0:
                 ok = False
-                print('Script could not be run, aborted', file=logfile)
-                self.retcode = -1
+                print(f'Script could not be run, aborted, with retcode is {self.retcode}, message: {response}', file=logfile)
+                return self.retcode
+            # try:
+            #     p1 = subprocess.Popen(Script, stdout=logfile, stderr=subprocess.STDOUT)
+            #     ok = True
+            # except:
+            #     ok = False
+            #     print('Script could not be run, aborted', file=logfile)
+            #     self.retcode = -1
             while ok:
                 self.retcode = p1.poll()
                 if self.retcode is None:

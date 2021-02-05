@@ -26,5 +26,3 @@ def get_QM():
     config_queue = config()
     queue = QM(config_queue)
     queue.run()
-
-
