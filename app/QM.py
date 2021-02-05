@@ -144,26 +144,31 @@ class QM(object):
         to_errorJobs = op.join(self.Qm_Folder, ERROR_JOBS, now+'-'+job.name)
         # os.chdir(self.qJobs)         # we might be in to_Jobs, so we cd away.
         os.chdir(to_Jobs)
+
         if job.retcode != 0:
             os.rename(to_Jobs, to_errorJobs)
-            subject = f"Your job {job.name} is not completed"
-            body = f"""The job named - {job.name} - started on QueueManager is not finished
-                        Please check your elements"""
         else:
             os.rename(to_Jobs, to_dJobs)
-            subject = f"Your job {job.name} is completed"
-            body = f"""The job named - {job.name} - started on QueueManager is finished 
-                    Info : {job.info}
-                    Result can be found here : {to_dJobs}
-                    Virtually yours,
-                    The QueueManager"""
         
         if self.mailactive:
             receiver = job.e_mail
+            subject = "QM Job - %s - finished"%job.name
+            body = """
+                The job named - {0} - started on QueueManager is finished
+
+                Info : {3}
+
+                The processing took :      {1}
+                Result can be found here : {2}
+
+                Virtually yours,
+
+                The QueueManager
+            """.format(job.name, 'job.time()', to_dJobs, job.info )
             try:
-                info_mail = Email(config = self.config, receiver=receiver, body=body, subject=subject)
-                mes = info_mail.sendMail()
-                logging.error("Sent mail to %s"%receiver)
+                info_mail = Email(config = self.config, receiver=receiver, body=body)
+                info_mail.sendMail()
             except:
                 logging.error("Mail to %s could not be sent"%receiver)
         logging.info('Finished job "%s" with code %d'%(job.name, job.retcode))
+        # self.running_jobs.remove(job)
