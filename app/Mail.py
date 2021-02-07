@@ -10,18 +10,21 @@ class Email(object):
         self.receiver = receiver
         self.body = body
         self.sender = self.config.get('QMServer', 'SendMail')
+        self.pwd = self.config.get('QMServer', 'SecKey')
         self.subject = subject
 
-    def sendMail(self):
-        # Create a secure SSL context
-        # context = ssl.create_default_context()
-        # with smtplib.SMTP_SSL("smtp-relay.gmail.com", port, context=context) as server:
-        #     try:
-        #         server.login(self.sender, self.config.get('QMServer', 'SecKey'))
-        #         server.sendmail(from_addr=self.sender, to_addrs=self.receiver, msg=self.body)
-        #         logging.info('email is sended')
-        #     except:
-        #         logging.info('email is not sended')
+    # def sendMail(self):
+    #     # Create a secure SSL context
+    #     context = ssl.create_default_context()
+    #     with smtplib.SMTP_SSL(self.config.get('QMServer', 'MailServer'), port, context=context) as server:
+    #         try:
+    #             server.login(self.sender, self.pwd)
+    #             server.sendmail(from_addr=self.sender, to_addrs=self.receiver, msg=self.body)
+    #             logging.info('email is sended')
+    #         except:
+    #             logging.info('email is not sended')
+
+
         receiver = self.receiver
         body = self.body
 
