@@ -2,7 +2,7 @@ __version__ = 0.4
 import sys
 import logging
 from configparser import ConfigParser
-from .QM import QM
+from .QueueManager import QueueManager as QM
 
 def config(*args, **kwarg):
     config = ConfigParser()

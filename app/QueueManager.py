@@ -7,9 +7,11 @@ from .Mail import Email
 import os
 import time
 op = os.path
+from pathlib import Path
+import shutil
 import glob
 
-class QM(object):
+class QueueManager(object):
     """
     class that deals with all incoming jobs
     It calls sequentially scout that waits for new jobs in the queue
@@ -20,7 +22,7 @@ class QM(object):
     """
     def __init__(self, config):
         self.config = config
-        self.Qm_Folder = self.config.get("QMServer", "QM_FOLDER")
+        self.qm_folder = self.config.get("QMServer", "QM_FOLDER")
         self.MaxNbProcessors = int(self.config.get("QMServer", "MaxNbProcessors"))
         self.launch_type = self.config.get("QMServer", "launch_type")
         self.job_file = self.config.get("QMServer", "job_file")
@@ -109,11 +111,13 @@ class QM(object):
         # self.running_jobs.append(job)
         logging.info('Starting job "%s" by %s'%(job.name,job.e_mail) )
         logging.debug(repr(job))
-        to_qJobs = op.join(self.Qm_Folder, QUEUE_JOBS, job.name)
-        to_Jobs = op.join(self.Qm_Folder, RUNNING_JOBS, job.name)
+        source_qJobs = op.join(self.qm_folder, QUEUE_JOBS, job.name)
+        to_Jobs = op.join(self.qm_folder, RUNNING_JOBS, job.name)
         # to_dJobs = op.join(self.QM_FOLDER, DONE_JOBS, job.name)
         
-        os.rename(to_qJobs, to_Jobs)    # First move job to work dir
+        # move job from queue folder to running folder
+        shutil.move(src=source_qJobs, dst=to_Jobs, copy_function=shutil.copytree)
+        # os.rename(to_qJobs, to_Jobs)    # First move job to work dir
         job.loc = to_Jobs
         os.chdir(to_Jobs)           # and cd there
         if job.script == "unknown":
@@ -138,19 +142,23 @@ class QM(object):
         closes and move the job folder to done_Jobs
         maybe also send e-mail once the job is done ... 
         """
-        to_Jobs = op.join(self.Qm_Folder, RUNNING_JOBS, job.name)
+        source_Jobs = op.join(self.qm_folder, RUNNING_JOBS, job.name)
         now = datetime.now().isoformat(timespec='seconds')
-        to_dJobs = op.join(self.Qm_Folder, DONE_JOBS, now+'-'+job.name)
-        to_errorJobs = op.join(self.Qm_Folder, ERROR_JOBS, now+'-'+job.name)
+        to_dJobs = op.join(self.qm_folder, DONE_JOBS, now+'-'+job.name)
+        to_errorJobs = op.join(self.qm_folder, ERROR_JOBS, now+'-'+job.name)
         # os.chdir(self.qJobs)         # we might be in to_Jobs, so we cd away.
-        os.chdir(to_Jobs)
+        # os.chdir(to_Jobs)
         if job.retcode != 0:
-            os.rename(to_Jobs, to_errorJobs)
+            # move job from running folder to error folder in case it has any error
+            shutil.move(src=source_Jobs, dst=to_errorJobs, copy_function=shutil.copytree)
+            # os.rename(to_Jobs, to_errorJobs)
             subject = f"Your job {job.name} is not completed"
             body = f"""The job named - {job.name} - started on QueueManager is not finished
                         Please check your elements"""
         else:
-            os.rename(to_Jobs, to_dJobs)
+            # move job from running folder to done folder
+            shutil.move(src=source_Jobs, dst=to_dJobs, copy_function=shutil.copytree)
+            # os.rename(to_Jobs, to_dJobs)
             subject = f"Your job {job.name} is completed"
             body = f"""The job named - {job.name} - started on QueueManager is finished 
                     Info : {job.info}

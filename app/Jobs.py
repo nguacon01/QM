@@ -8,8 +8,8 @@ ERROR_JOBS = "QM_lost+found"
 DONE_JOBS = "QM_dJobs"
 
 class Jobs(object):
-    def __init__(self, QM):
-        self.QM = QM
+    def __init__(self, queue_manager):
+        self.queue_manager = queue_manager
 
     def _get_jobs_folder_path(self, type):
         """
@@ -17,15 +17,15 @@ class Jobs(object):
         """
         jobs_folder = ''
         if type==QUEUE_JOBS:
-            return os.path.join(self.QM.Qm_Folder, QUEUE_JOBS)
+            return os.path.join(self.queue_manager.qm_folder, QUEUE_JOBS)
         elif type==ERROR_JOBS:
-            return os.path.join(self.QM.Qm_Folder, ERROR_JOBS)
+            return os.path.join(self.queue_manager.qm_folder, ERROR_JOBS)
         elif type==DONE_JOBS:
-            return os.path.join(self.QM.Qm_Folder, DONE_JOBS)
+            return os.path.join(self.queue_manager.qm_folder, DONE_JOBS)
         elif type==RUNNING_JOBS:
-            return os.path.join(self.QM.Qm_Folder, RUNNING_JOBS)
+            return os.path.join(self.queue_manager.qm_folder, RUNNING_JOBS)
         else:
-            return self.QM.Qm_Folder
+            return self.queue_manager.qm_folder
             
     def get_jobs(self, type=None):
         """
