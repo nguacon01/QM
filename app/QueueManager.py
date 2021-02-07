@@ -55,7 +55,7 @@ class QueueManager(object):
             while True :
                 N = self.clean_running_n_count()
                 # self.queue_jobs = job_list(self.qJobs, self.dJobs)
-                self.queue_jobs = self.jobs.get_jobs()
+                self.queue_jobs = self.jobs.get_jobs(type=QUEUE_JOBS)
                 if self.queue_jobs:
                     next_one = self.queue_jobs.pop()
                     if N + min(next_one.nb_proc, self.MaxNbProcessors) <= self.MaxNbProcessors:  # if there is room
