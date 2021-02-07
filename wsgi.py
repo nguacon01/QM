@@ -16,8 +16,8 @@ def email():
 
 def move_file():
     source = Path(os.getcwd()) / 'QM_files' / 'QM_dJobs' / 'test_2.j'
-    des = Path(os.getcwd()) / 'QM_files' / 'QM_qJobs' / 'test_2.j'
-    shutil.move(src=source, dst=des, copy_function=shutil.copytree)
+    des = Path(os.getcwd()) / 'QM_files' / 'QM_qJobs' / 'test_3.j'
+    shutil.copytree(src=source, dst=des, copy_function=shutil.copy)
     return 'done'
 
 if __name__ == '__main__':

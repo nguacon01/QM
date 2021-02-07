@@ -135,13 +135,6 @@ class Job(object):
                 ok = False
                 print(f'Script could not be run, aborted, with retcode is {self.retcode}, message: {response}', file=logfile)
                 return self.retcode
-            # try:
-            #     p1 = subprocess.Popen(Script, stdout=logfile, stderr=subprocess.STDOUT)
-            #     ok = True
-            # except:
-            #     ok = False
-            #     print('Script could not be run, aborted', file=logfile)
-            #     self.retcode = -1
             while ok:
                 self.retcode = p1.poll()
                 if self.retcode is None:
