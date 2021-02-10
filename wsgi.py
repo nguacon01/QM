@@ -1,3 +1,7 @@
+"""
+    a Flask server who will receive a command to create a job in job queue.
+    command will be create and send from mscf file generator
+"""
 # import app as queueManager
 from flask import Flask, json, redirect, request, jsonify
 import os
@@ -21,15 +25,21 @@ def start_logger():
     logging.basicConfig(level=logging.INFO, \
         format="%(asctime)s %(levelname)s %(message)s", filename="web.log")
     
-
 def read_config():
+    """
+        This function will read config parametres in given file
+    """
     config = ConfigParser()
     config.read('QMserv.cfg')
     return config
 
 @app.route('/create_job', methods=['POST','GET'])
 def create_job():
-    logging.info('===create a job in queue===')
+    """
+        API to create a job in queue
+        It works but still in dev
+        return code will be changed in future
+    """
     if request.method == 'GET':
         logging.info('incomming method is GET')
         return jsonify({'msg':'Method must be POST'}), 401
@@ -43,7 +53,6 @@ def create_job():
     # username = request.args.get('username')
 
     if not job_name or not email or not directory:
-        logging.info('Not enough information for a job')
         return jsonify({'msg':'Not enough information for a job'}), 402
     
     config = read_config()
@@ -65,13 +74,11 @@ def create_job():
         return jsonify({'msg':'Job existed'}), 403
     # create tmp job folder
     os.mkdir(job_folder_temp)
-    logging.info(f'Job folder .j is created with path:{job_folder_temp}')
 
     # create job folder .j
     job_folder = Path(queue_folder_path) / job_name
     # check if job folder existed
     if os.path.exists(job_folder):
-        logging.info('Job folder .j existed')
         return jsonify({'msg':'Job existed'}), 403
 
     # create proc_config.cfg file
@@ -95,11 +102,8 @@ def create_job():
     shutil.copy(src='job_EUFT/LaunchEUFTICR.py', dst=job_folder_temp)
 
     shutil.copytree(src=job_folder_temp, dst=job_folder, copy_function=shutil.copy)
-    logging.info('copy files from tmp job to job folder .j')
     shutil.rmtree(job_folder_temp)
-    logging.info('remove files from tmp job')
 
-    logging.info('===Finish creating job in queue===')
     return jsonify({'msg':'Job is in the queue'}), 200
 
 
