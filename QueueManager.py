@@ -61,18 +61,17 @@ import logging
 from configparser import ConfigParser
 from xml.sax import handler, make_parser
 from datetime import datetime, timedelta
+import shutil
+import yagmail
 
 __version__ = 0.4
 
 debug = False
 
-def start_logger():
-    "configurate and start logger"
-    # create logger
-    logging.basicConfig(level=logging.INFO, \
-        format="%(asctime)s %(levelname)s %(message)s", filename="QueueManager.log")
-    #limit size, and add rotate
-#    logger.handlers.RotatingFileHandler(LOG_FILENAME, maxBytes=1024, backupCount=10)
+QUEUE_JOBS = "QM_qJobs"
+RUNNING_JOBS = "QM_Jobs"
+ERROR_JOBS = "QM_lost+found"
+DONE_JOBS = "QM_dJobs"
 
 class XmlInfo(handler.ContentHandler):
     "used to parse infos.xml files"
@@ -83,11 +82,10 @@ class XmlInfo(handler.ContentHandler):
         if name in self.keylist:
             value = attrs.get("value")
             setattr(self.job, name, value)
-
 class Job(object):
     """this class holds every thing to describe a job"""
-    job_type = None  # these entries will be overwriten at start-up
-    job_file = None
+    job_type = 'cfg'  # these entries will be overwriten at start-up
+    job_file = 'proc_config.cfg'
     print ('in beginnng of Job')
     def __init__(self, loc, name):
         self.loc = loc      # QM_xJobs
@@ -123,6 +121,7 @@ class Job(object):
                 setattr(self, intkey, int(getattr(self,intkey)))
             except ValueError:
                 setattr(self, intkey, "undefined")
+
     @property
     def url(self):
         return op.join(self.loc,self.name)
@@ -151,15 +150,15 @@ class Job(object):
     def mylog(self):
         return op.join(self.loc, self.name, "process.log")
     def avancement(self):
-        """   analyse log file, return avancement as a string 0 ... 100   """
+        """   
+            analyse log file, return avancement as a string 0 ... 100   
+        """
         import re
         av = 0.0
         with open(self.mylog,'r') as F:
             for l in F.readlines():
-#                print (l)
                 m = re.search(r"\s+(\d+)\s*/\s*(\d+)",l)   ### Processing col 8154   5 / 32
                 if m:
-#                    print (m.group(1), m.group(2))
                     av = float(m.group(1))/float(m.group(2))
         if debug: print ("avancement", av)
         return "%.f"%(100.0*av)
@@ -188,13 +187,15 @@ class Job(object):
         logfile.flush()
         Script = self.script.split() #"python"
         if True:
-            try:
-                p1 = subprocess.Popen(Script, stdout=logfile, stderr=subprocess.STDOUT)
-                ok = True
-            except:
+            # sub process in which we run job's scripts
+            p1 = subprocess.Popen(Script, stdout=logfile, stderr=subprocess.STDOUT)
+            response = p1.communicate()
+            self.retcode = p1.returncode
+            ok =  True
+            if self.retcode != 0:
                 ok = False
-                print('Script could not be run, aborted', file=logfile)
-                self.retcode = -1
+                print(f'Script could not be run, aborted, with retcode is {self.retcode}, message: {response}', file=logfile)
+                return self.retcode
             while ok:
                 self.retcode = p1.poll()
                 if self.retcode is None:
@@ -228,33 +229,69 @@ class Job(object):
             except:
                 pass
         return "\n".join(p)
+    
+    __str__ = __repr__
 
-def job_list(path, error, do_sort=True):
-    " returns a list with all jobs in path"
-    ll = []
-    if debug: print ('in job list',path)
-    for i in os.listdir(path):
-        if debug: print (i)
-        if os.path.isdir(os.path.join(path,i)) :
-            try:
-                if debug: print ("JJ = Job(path,i)")
-                JJ = Job(path,i)
-            except:
-                msg = "Job invalid: "+os.path.join(path,i)
-                logging.warning(msg)
-                with open(os.path.join(path,i, "process.log"), "w") as F:
-                    F.write(msg)
-                
-                os.rename(os.path.join(path,i), os.path.join(error,i) )
-                logging.warning("Job %s moved to %s"%(os.path.join(path,i),error) )
-            else:
-                if debug: print ('append new job to ll ')
-                ll.append( JJ )
-    if do_sort:
-        ll.sort(reverse=True, key=lambda j: j.date)   # sort by reversed date
-    return ll
+class Jobs(object):
+    def __init__(self, queue_manager):
+        self.queue_manager = queue_manager
 
-class QM(object):
+    def _get_jobs_folder_path(self, type):
+        """
+            type must be: "queue", "running", "done", "error" or None
+        """
+        jobs_folder = ''
+        if type==QUEUE_JOBS:
+            return os.path.join(self.queue_manager.qm_folder, QUEUE_JOBS)
+        elif type==ERROR_JOBS:
+            return os.path.join(self.queue_manager.qm_folder, ERROR_JOBS)
+        elif type==DONE_JOBS:
+            return os.path.join(self.queue_manager.qm_folder, DONE_JOBS)
+        elif type==RUNNING_JOBS:
+            return os.path.join(self.queue_manager.qm_folder, RUNNING_JOBS)
+        else:
+            return self.queue_manager.qm_folder
+            
+    # get jobs by type. This function is used to replace function job_list
+    # job name will be autolatically generated by mscf file generator
+    # with form : 2021-02-09T15:50:13-job_name-of-project-folder_name-of-mscf-file.j
+    def get_jobs(self, type=None):
+        """
+        get jobs in "queue", "running", "done", "error"
+        return an array of jobs
+        """
+        jobs_folder = self._get_jobs_folder_path(type)
+        jobs = glob.glob(jobs_folder+'/*.j')
+        jobs_data = []
+        for job_path in jobs:
+            loc, name = os.path.split(job_path)
+            job = Job(loc=loc, name=name)
+            jobs_data.append(job)
+        # in case there is nothing in jobs_data list, job_data.reverse() will return None. So it need to be checked here
+        if len(jobs_data) == 0:
+            return jobs_data
+        return jobs_data.reverse()
+class Email(object):
+    def __init__(self, config, receiver, body, subject):
+        self.config = config
+        self.receiver = receiver
+        self.body = body
+        self.sender = self.config.get('QMServer', 'SendMail')
+        self.pwd = self.config.get('QMServer', 'SecKey')
+        self.subject = subject
+
+    def sendMail(self):
+
+        receiver = self.receiver
+        body = self.body
+
+        yag = yagmail.SMTP(self.config.get('QMServer', 'SendMail'), self.config.get('QMServer', 'SecKey'))
+        yag.send(
+            to=receiver,
+            subject=self.subject,
+            contents=body
+        )
+class QueueManager(object):
     """
     class that deals with all incoming jobs
     It calls sequentially scout that waits for new jobs in the queue
@@ -263,16 +300,14 @@ class QM(object):
     
     everything is maintained in a self.joblist lists - top job is the first to be run
     """
-    def __init__(self, configfile):
-        logging.info("QueueManager Initialization")
-        # read config
-        self.configfile = configfile
-        self.config = ConfigParser()
-        with open(configfile) as F:
-            self.config.read_file(F)
-        self.QM_FOLDER = self.config.get("QMServer", "QM_FOLDER")
+    def __init__(self, config):
+        self.config = config
+        self.debug = self.config.getboolean( "QMServer", "Debug")
+        if self.debug:
+            logging.getLogger().setLevel(logging.DEBUG)
+        # name of variable should be in lowercase, upercase should be used for constants
+        self.qm_folder = self.config.get("QMServer", "QM_FOLDER")
         self.MaxNbProcessors = int(self.config.get("QMServer", "MaxNbProcessors"))
-        print ("MaxNbProcessors",self.MaxNbProcessors)
         self.launch_type = self.config.get("QMServer", "launch_type")
         self.job_file = self.config.get("QMServer", "job_file")
         if self.job_file.endswith('.xml'):
@@ -281,29 +316,16 @@ class QM(object):
             self.job_type = 'cfg'
         else:
             raise Exception("job_file should be either .xml or .cfg")
-        self.mailactive = self.config.getboolean("QMServer", "MailActive")
-        Job.job_file = self.job_file    # inject into Job class
-        Job.job_type = self.job_type
-        print ('self.job_type ', self.job_type)
-        self.ROOT = self.QM_FOLDER
-        print ('self.ROOT', self.ROOT)
-        self.debug = self.config.getboolean( "QMServer", "Debug")
-        if self.debug:
-            logging.getLogger().setLevel(logging.DEBUG)
-        self.qJobs = op.join(self.QM_FOLDER,"QM_qJobs")
-        self.Jobs = op.join(self.QM_FOLDER,"QM_Jobs")
-        self.dJobs = op.join(self.QM_FOLDER,"QM_dJobs")
-        self.lostJobs = op.join(self.QM_FOLDER,"QM_lost+found")
-        for f in (self.qJobs, self.Jobs, self.dJobs, self.lostJobs):    # check set-up
-            if not os.path.exists(f):
-                os.makedirs(f)
-        for f in glob.glob(self.Jobs + "/*"):  # clean left-overs
-            b = datetime.now().isoformat(timespec='seconds') + os.path.basename(f)
-            logging.warning( 'renaming left-over job "%s" to "%s"'%(f, os.path.join(self.lostJobs, b)) )
-            os.rename(f, os.path.join(self.lostJobs, b ) )
-        self.queue_jobs = []
-        self.running_jobs = []
+        self.mailactive = config.getboolean("QMServer", "MailActive")
+
+        # dmd
+        self.jobs = Jobs(self)
+        # dmd
         self.nap_time = 3.0       # in second
+    
+    def __str__(self):
+        return f"Queue with {self.MaxNbProcessors} processor, job type is {self.job_type}, with {len(self.jobs.get_jobs(type=QUEUE_JOBS))} jobs are in queue"
+    __repr__ = __str__
 
     def run(self):
         "the way to start to QM endless loop"
@@ -315,7 +337,8 @@ class QM(object):
             print ('self.launch_type == "non-blocking"')
             while True :
                 N = self.clean_running_n_count()
-                self.queue_jobs = job_list(self.qJobs, self.dJobs)
+                # self.queue_jobs = job_list(self.qJobs, self.dJobs)
+                self.queue_jobs = self.jobs.get_jobs(type=QUEUE_JOBS)
                 if self.queue_jobs:
                     next_one = self.queue_jobs.pop()
                     if N + min(next_one.nb_proc, self.MaxNbProcessors) <= self.MaxNbProcessors:  # if there is room
@@ -333,11 +356,9 @@ class QM(object):
         and returns an ordered list of present jobs.
         oldest (most prio) first
         """
-        self.queue_jobs = []
-        while len(self.queue_jobs) == 0:
-            self.queue_jobs = job_list(self.qJobs, self.dJobs)
+        while len(self.jobs.get_jobs(type=QUEUE_JOBS)) == 0:
             self.nap()
-        next_job = self.queue_jobs.pop()
+        next_job = self.jobs.get_jobs(type=QUEUE_JOBS).pop()
         return next_job
     def clean_running_n_count(self):
         """
@@ -362,22 +383,24 @@ class QM(object):
         method that deals with moving job to do around and running  job.script 
         loanch in blocking or non-blocking mode depending on global flag
         """
-        if debug:
+        if self.config.get('QMServer', 'Debug'):
             print ('QM [%s] Starting job "%s" by %s'%(datetime.now().isoformat(timespec='seconds'), job.name, job.e_mail))
             print ('job.nb_proc ', job.nb_proc)
             print ('job.info ', job.info)
             print ('job.script ', job.script)
             print ('job.priority', job.priority)
             print ('job.size', job.size)
-        self.running_jobs.append(job)
+        # self.running_jobs.append(job)
         logging.info('Starting job "%s" by %s'%(job.name,job.e_mail) )
         logging.debug(repr(job))
-        to_qJobs = op.join(self.qJobs, job.name)
-        to_Jobs = op.join(self.Jobs, job.name)
-        to_dJobs = op.join(self.dJobs, job.name)
+        source_qJobs = op.join(self.qm_folder, QUEUE_JOBS, job.name)
+        to_Jobs = op.join(self.qm_folder, RUNNING_JOBS, job.name)
+        # to_dJobs = op.join(self.QM_FOLDER, DONE_JOBS, job.name)
         
-        os.rename(to_qJobs, to_Jobs)    # First move job to work dir
-        job.loc = self.Jobs
+        # move job from queue folder to running folder
+        shutil.move(src=source_qJobs, dst=to_Jobs, copy_function=shutil.copytree)
+        # os.rename(to_qJobs, to_Jobs)    # First move job to work dir
+        job.loc = to_Jobs
         os.chdir(to_Jobs)           # and cd there
         if job.script == "unknown":
             job.script = 'echo no-script; pwd; sleep 10; ls -l'
@@ -401,45 +424,71 @@ class QM(object):
         closes and move the job folder to done_Jobs
         maybe also send e-mail once the job is done ... 
         """
-        to_Jobs = op.join(self.Jobs, job.name)
+        source_Jobs = op.join(self.qm_folder, RUNNING_JOBS, job.name)
         now = datetime.now().isoformat(timespec='seconds')
-        to_dJobs = op.join(self.dJobs, now+'-'+job.name)
-        os.chdir(self.qJobs)         # we might be in to_Jobs, so we cd away.
-        os.rename(to_Jobs, to_dJobs)
+        to_dJobs = op.join(self.qm_folder, DONE_JOBS, now+'-'+job.name)
+        to_errorJobs = op.join(self.qm_folder, ERROR_JOBS, now+'-'+job.name)
+        # os.chdir(self.qJobs)         # we might be in to_Jobs, so we cd away.
+        # os.chdir(to_Jobs)
+        if job.retcode != 0:
+            # move job from running folder to error folder in case it has any error
+            shutil.move(src=source_Jobs, dst=to_errorJobs, copy_function=shutil.copytree)
+            # os.rename(to_Jobs, to_errorJobs)
+            subject = f"Your job {job.name} is not completed"
+            body = f"""The job named - {job.name} - started on QueueManager is not finished
+                        Please check your elements"""
+        else:
+            # move job from running folder to done folder
+            shutil.move(src=source_Jobs, dst=to_dJobs, copy_function=shutil.copytree)
+            # os.rename(to_Jobs, to_dJobs)
+            subject = f"Your job {job.name} is completed"
+            body = f"""The job named - {job.name} - started on QueueManager is finished 
+                    Info : {job.info}
+                    Result can be found here : {to_dJobs}
+                    Virtually yours,
+                    The QueueManager"""
+        
         if self.mailactive:
-            address = job.e_mail
-            subject = "QM Job - %s - finished"%job.name
-            to_mail = """
-The job named - {0} - started on QueueManager is finished
-
-Info : {3}
-
-The processing took :      {1}
-Result can be found here : {2}
-
-Virtually yours,
-
-The QueueManager
-""".format(job.name, job.time(), to_dJobs, job.info )
+            receiver = job.e_mail
             try:
-                mail(address, subject, to_mail )
+                info_mail = Email(config = self.config, receiver=receiver, body=body, subject=subject)
+                mes = info_mail.sendMail()
+                logging.error("Sent mail to %s"%receiver)
             except:
-                logging.error("Mail to %s could not be sent"%address)
+                logging.error("Mail to %s could not be sent"%receiver)
         logging.info('Finished job "%s" with code %d'%(job.name, job.retcode))
-        self.running_jobs.remove(job)
+
+def start_logger():
+    "configurate and start logger"
+    # create logger
+    logging.basicConfig(level=logging.INFO, \
+        format="%(asctime)s %(levelname)s %(message)s", filename="QueueManager.log")
+
+def get_QM(config_file_path):
+    """
+        Get queue of jobs
+    """
+    config = ConfigParser()
+    if not os.path.isfile(config_file_path) and not config_file_path.endswith('.cfg'):
+        raise('file config did not existed')
+    config.read(config_file_path)
+
+    queue = QueueManager(config)
+    queue.run()
 
 if  __name__ == '__main__':
     
     start_logger()
-    q =  QM("QMserv.cfg")
-    # if q.mailactive:
-    #     from sendgmail import mail               # otherwise, copy it here
-    queue_jobs = job_list(q.qJobs, q.dJobs)
-    # print listing
-    if q.debug:
-        logging.debug( "Dump queue content at start-up" )
-        while queue_jobs:
-            logging.debug( repr(queue_jobs.pop()) )
+    get_QM('/home/nguacon01/work/QM/QMserv.cfg')
+    # q =  QM("QMserv.cfg")
+    # # if q.mailactive:
+    # #     from sendgmail import mail               # otherwise, copy it here
+    # queue_jobs = job_list(q.qJobs, q.dJobs)
+    # # print listing
+    # if q.debug:
+    #     logging.debug( "Dump queue content at start-up" )
+    #     while queue_jobs:
+    #         logging.debug( repr(queue_jobs.pop()) )
 
-    # then loop for ever
-    q.run()
+    # # then loop for ever
+    # q.run()
