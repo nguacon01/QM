@@ -8,7 +8,7 @@ QM_files/
 env/
 job_EUFT/
 QueueManager.log
-QMserv.cfg
 app/
 app_run.py
 QueueManager.old.py
+eg_job
