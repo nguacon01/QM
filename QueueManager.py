@@ -170,9 +170,13 @@ class Job(object):
         tt = "- undefined -"
         with open(self.mylog, 'r') as F:
             for l in F.readlines():
-                m = re.search(r"time:\s*(\d+)",l)   #
-                if m:
-                    tt = m.group(1)
+                # m = re.search(r"time:\s*(\d+)",l)
+                # m = re.search(r"\d{4}-[01]\d-[0-3]\dT[0-2]\d:[0-5]\d:[0-5]\d",l)
+                # print(m)
+                # if m:
+                #     tt = m.group(1)
+                if l.startswith('dure'):
+                    tt = l.strip().split(':')[-1]
         return tt
     def run1(self):
         "run the job - shell script way - blocking"
@@ -185,6 +189,7 @@ class Job(object):
     def run2(self):
         "run the job - Popen way - blocking"
         logfile = open("process.log",'w')
+        time_start = time.time()
         print('Job started by QM at: ',datetime.now().isoformat(timespec='seconds'), file=logfile)
         logfile.flush()
         Script = self.script.split() #"python"
@@ -203,6 +208,9 @@ class Job(object):
                 else:
                     print ("Job finished at: %s with code %d"%(datetime.now().isoformat(timespec='seconds'), self.retcode), file=logfile)
                     break
+        time_finish = time.time()
+        dure = time_finish - time_start
+        logfile.write('dure: '+ str(round(dure,0)) + 's')
         logfile.close()
         return self.retcode
     run = run2
