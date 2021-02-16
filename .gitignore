@@ -5,3 +5,5 @@ QM_files/*
 *.tar.gz
 *.pdf
 *.log
+env/
+job_EUFT/
