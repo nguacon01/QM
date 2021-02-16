@@ -1,5 +1,5 @@
 b12/*
-QM_files/*
+QM_files/
 *.pyc
 *.tgz
 *.tar.gz
@@ -7,3 +7,8 @@ QM_files/*
 *.log
 env/
 job_EUFT/
+QueueManager.log
+app/
+app_run.py
+QueueManager.old.py
+.vscode/

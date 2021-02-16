@@ -8,7 +8,7 @@ function timedRefresh(timeoutPeriod) {    setTimeout("location.reload(true);",ti
 <body onload="JavaScript:timedRefresh({{1000*refresh}});" >
 <p><i>determined at {{now}}</i> - <em>This page will refresh automatically every {{refresh}} seconds.</em></p>
 
-<H1 style="color:#000">Monitoring QM server</H1>
+<H1 style="color:#000">Monitoring jobs on QM server</H1>
 <p> <b>QM</b> is a simplistic Queue Manager. put your jobs into folders, drop the folders in the queue, and the jobs will be executed sequentially.</p>
 <p>Find some documentation <a href="https://github.com/delsuc/QM/blob/master/README.md">HERE</a></p>
     
