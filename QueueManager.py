@@ -170,12 +170,7 @@ class Job(object):
         tt = "- undefined -"
         with open(self.mylog, 'r') as F:
             for l in F.readlines():
-                # m = re.search(r"time:\s*(\d+)",l)
-                # m = re.search(r"\d{4}-[01]\d-[0-3]\dT[0-2]\d:[0-5]\d:[0-5]\d",l)
-                # print(m)
-                # if m:
-                #     tt = m.group(1)
-                if l.startswith('dure'):
+                if l.startswith('elapsed time:'):
                     tt = l.strip().split(':')[-1]
         return tt
     def run1(self):
@@ -209,8 +204,8 @@ class Job(object):
                     print ("Job finished at: %s with code %d"%(datetime.now().isoformat(timespec='seconds'), self.retcode), file=logfile)
                     break
         time_finish = time.time()
-        dure = time_finish - time_start
-        logfile.write('dure: '+ str(round(dure,0)) + 's')
+        duration = time_finish - time_start
+        logfile.write('elapsed time: '+ str(round(duration,0)) + 's')
         logfile.close()
         return self.retcode
     run = run2
@@ -276,22 +271,25 @@ class Email(object):
         self.config = config
         self.receiver = receiver
         self.body = body
-        self.sender = self.config.get('QMServer', 'SendMail')
-        self.pwd = self.config.get('QMServer', 'SecKey')
+        if 'MailSender' in self.config.get('QMServer'):
+            self.sender = self.config.get('QMServer', 'MailSender')
+        else:
+            self.sender = os.environ['MailSender']
+        if 'MailSecretKey' in self.config.get('QMServer'):
+            self.secretkey = self.config.get('QMServer','MailSecretKey')
+        else:
+            self.secretkey = os.environ['MailSecretKey']
         self.subject = subject
 
     def sendMail(self):
         """
             send email
         """
-        receiver = self.receiver
-        body = self.body
-
-        yag = yagmail.SMTP(self.config.get('QMServer', 'SendMail'), self.config.get('QMServer', 'SecKey'))
+        yag = yagmail.SMTP(self.sender, self.secretkey)
         yag.send(
-            to=receiver,
-            subject=self.subject,
-            contents=body
+            to = self.receiver,
+            subject = self.subject,
+            contents = self.body
         )
 
 class QM(object):
