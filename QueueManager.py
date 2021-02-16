@@ -61,6 +61,7 @@ import logging
 from configparser import ConfigParser
 from xml.sax import handler, make_parser
 from datetime import datetime, timedelta
+import yagmail
 
 __version__ = 0.4
 
@@ -169,9 +170,13 @@ class Job(object):
         tt = "- undefined -"
         with open(self.mylog, 'r') as F:
             for l in F.readlines():
-                m = re.search(r"time:\s*(\d+)",l)   #
-                if m:
-                    tt = m.group(1)
+                # m = re.search(r"time:\s*(\d+)",l)
+                # m = re.search(r"\d{4}-[01]\d-[0-3]\dT[0-2]\d:[0-5]\d:[0-5]\d",l)
+                # print(m)
+                # if m:
+                #     tt = m.group(1)
+                if l.startswith('dure'):
+                    tt = l.strip().split(':')[-1]
         return tt
     def run1(self):
         "run the job - shell script way - blocking"
@@ -184,6 +189,7 @@ class Job(object):
     def run2(self):
         "run the job - Popen way - blocking"
         logfile = open("process.log",'w')
+        time_start = time.time()
         print('Job started by QM at: ',datetime.now().isoformat(timespec='seconds'), file=logfile)
         logfile.flush()
         Script = self.script.split() #"python"
@@ -202,6 +208,9 @@ class Job(object):
                 else:
                     print ("Job finished at: %s with code %d"%(datetime.now().isoformat(timespec='seconds'), self.retcode), file=logfile)
                     break
+        time_finish = time.time()
+        dure = time_finish - time_start
+        logfile.write('dure: '+ str(round(dure,0)) + 's')
         logfile.close()
         return self.retcode
     run = run2
@@ -253,6 +262,37 @@ def job_list(path, error, do_sort=True):
     if do_sort:
         ll.sort(reverse=True, key=lambda j: j.date)   # sort by reversed date
     return ll
+
+class Email(object):
+    """
+    This class helps us to send mail whenever job is done or has error
+    self.config : which is read from config file
+    self.body: body of email
+    self.sender: sender is loaded from config
+    self.pwd : load from config
+    self.subject: mail's subject
+    """
+    def __init__(self, config, receiver, body, subject):
+        self.config = config
+        self.receiver = receiver
+        self.body = body
+        self.sender = self.config.get('QMServer', 'SendMail')
+        self.pwd = self.config.get('QMServer', 'SecKey')
+        self.subject = subject
+
+    def sendMail(self):
+        """
+            send email
+        """
+        receiver = self.receiver
+        body = self.body
+
+        yag = yagmail.SMTP(self.config.get('QMServer', 'SendMail'), self.config.get('QMServer', 'SecKey'))
+        yag.send(
+            to=receiver,
+            subject=self.subject,
+            contents=body
+        )
 
 class QM(object):
     """
@@ -406,6 +446,12 @@ class QM(object):
         to_dJobs = op.join(self.dJobs, now+'-'+job.name)
         os.chdir(self.qJobs)         # we might be in to_Jobs, so we cd away.
         os.rename(to_Jobs, to_dJobs)
+
+        # update job location after transfer it from QM_Jobs to QM_dJobs
+        dJob_loc, dJob_name = os.path.split(to_dJobs)
+        job.loc = dJob_loc
+        job.name = dJob_name
+
         if self.mailactive:
             address = job.e_mail
             subject = "QM Job - %s - finished"%job.name
@@ -422,7 +468,9 @@ Virtually yours,
 The QueueManager
 """.format(job.name, job.time(), to_dJobs, job.info )
             try:
-                mail(address, subject, to_mail )
+                # mail = Email(address, subject, to_mail )
+                mail = Email(config=self.config, receiver=address, body= to_mail, subject=subject)
+                mail.sendMail()
             except:
                 logging.error("Mail to %s could not be sent"%address)
         logging.info('Finished job "%s" with code %d'%(job.name, job.retcode))
@@ -432,8 +480,8 @@ if  __name__ == '__main__':
     
     start_logger()
     q =  QM("QMserv.cfg")
-    if q.mailactive:
-        from sendgmail import mail               # otherwise, copy it here
+    # if q.mailactive:
+    #     from sendgmail import mail               # otherwise, copy it here
     queue_jobs = job_list(q.qJobs, q.dJobs)
     # print listing
     if q.debug:
