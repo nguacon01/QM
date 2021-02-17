@@ -232,7 +232,7 @@ class Job(object):
         logfile.write('elapsed time: '+ str(round(duration,0)) + 's')
         logfile.close()
         return self.retcode
-    run = run2
+    run = run2 
     def launch(self):
         """
         Launch the job - not blocking
