@@ -62,6 +62,7 @@ from configparser import ConfigParser
 from xml.sax import handler, make_parser
 from datetime import datetime, timedelta
 import yagmail
+import pwd
 
 __version__ = 0.4
 
@@ -99,6 +100,7 @@ class Job(object):
         # the following will be modified by parsexml/parsecfg
         self.nb_proc = 1
         self.e_mail = "unknown"
+        self.username=None
         self.info = "unknown"
         self.script = "unknown"
         self.priority = 0
@@ -118,6 +120,7 @@ class Job(object):
         if self.job_type == "xml":
             self.parsexml()
         if self.job_type == "cfg":
+            print ('job type is cfg. Start parse config')
             self.parsecfg()
         for intkey in ["nb_proc", "priority", "size"]:
             try:
@@ -138,6 +141,10 @@ class Job(object):
         config = ConfigParser()
         with open(self.myjobfile) as F:
             config.read_file( F )
+        if config.has_option('Proc', 'username'):
+            val = config.get('Proc', 'username')
+            setattr(self, 'username', val)
+            print('set username:', val)
         for k in self.keylist:
             if config.has_option("QMOptions", k):
                 val = config.get("QMOptions", k)
@@ -181,6 +188,16 @@ class Job(object):
         except OSError as e:
             logging.error("Execution failed:"+ str(e))
             self.retcode = -1
+    
+    def demote(self, user_uid, user_gid):
+        """
+        Change user uid and user gid to run a sub process as other user
+        """
+        def set_ids():
+            os.setgid(user_gid)
+            os.setuid(user_uid)
+        return set_ids
+
     def run2(self):
         "run the job - Popen way - blocking"
         logfile = open("process.log",'w')
@@ -189,8 +206,15 @@ class Job(object):
         logfile.flush()
         Script = self.script.split() #"python"
         if True:
+            preexec_fn=None
+            if self.username is not None:
+                user_uid = pwd.getpwnam(str(self.username)).pw_uid
+                user_gid = pwd.getpwnam(str(self.username)).pw_gid
+                print("user_uid:", user_uid, file=logfile)
+                preexec_fn=self.demote(user_uid, user_gid)
+            # run sub process as not root username which is declared in proc_config.cfg file
             try:
-                p1 = subprocess.Popen(Script, stdout=logfile, stderr=subprocess.STDOUT)
+                p1 = subprocess.Popen(Script, stdout=logfile, stderr=subprocess.STDOUT, preexec_fn=preexec_fn)
                 ok = True
             except:
                 ok = False
