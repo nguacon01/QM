@@ -61,7 +61,7 @@ import logging
 from configparser import ConfigParser
 from xml.sax import handler, make_parser
 from datetime import datetime, timedelta
-import yagmail
+# import yagmail
 import pwd
 
 __version__ = 0.4
@@ -232,7 +232,7 @@ class Job(object):
         logfile.write('elapsed time: '+ str(round(duration,0)) + 's')
         logfile.close()
         return self.retcode
-    run = run2 
+    run = run2
     def launch(self):
         """
         Launch the job - not blocking
@@ -295,11 +295,11 @@ class Email(object):
         self.config = config
         self.receiver = receiver
         self.body = body
-        if 'MailSender' in self.config.get('QMServer'):
+        if self.config.has_option('QMServer', 'MailSender'):
             self.sender = self.config.get('QMServer', 'MailSender')
         else:
             self.sender = os.environ['MailSender']
-        if 'MailSecretKey' in self.config.get('QMServer'):
+        if self.config.has_option('QMServer','MailSecretKey'):
             self.secretkey = self.config.get('QMServer','MailSecretKey')
         else:
             self.secretkey = os.environ['MailSecretKey']
@@ -309,6 +309,7 @@ class Email(object):
         """
             send email
         """
+        import yagmail
         yag = yagmail.SMTP(self.sender, self.secretkey)
         yag.send(
             to = self.receiver,
