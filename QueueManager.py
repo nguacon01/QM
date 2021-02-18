@@ -63,6 +63,7 @@ from xml.sax import handler, make_parser
 from datetime import datetime, timedelta
 # import yagmail
 import pwd
+from pathlib import Path
 
 __version__ = 0.4
 
@@ -164,10 +165,8 @@ class Job(object):
         av = 0.0
         with open(self.mylog,'r') as F:
             for l in F.readlines():
-#                print (l)
                 m = re.search(r"\s+(\d+)\s*/\s*(\d+)",l)   ### Processing col 8154   5 / 32
                 if m:
-#                    print (m.group(1), m.group(2))
                     av = float(m.group(1))/float(m.group(2))
         if debug: print ("avancement", av)
         return "%.f"%(100.0*av)
@@ -295,11 +294,13 @@ class Email(object):
         self.config = config
         self.receiver = receiver
         self.body = body
-        if self.config.has_option('QMServer', 'MailSender'):
+        # check MailSender and MailSecretKey in config file. 
+        # If it does not exist or does not have value, then we load it from env variables
+        if self.config.has_option('QMServer', 'MailSender') and self.config.get('QMServer', 'MailSender')!= '':
             self.sender = self.config.get('QMServer', 'MailSender')
         else:
             self.sender = os.environ['MailSender']
-        if self.config.has_option('QMServer','MailSecretKey'):
+        if self.config.has_option('QMServer','MailSecretKey') and self.config.get('QMServer','MailSecretKey') != '':
             self.secretkey = self.config.get('QMServer','MailSecretKey')
         else:
             self.secretkey = os.environ['MailSecretKey']
@@ -311,11 +312,13 @@ class Email(object):
         """
         import yagmail
         yag = yagmail.SMTP(self.sender, self.secretkey)
+        print('Sending mail to ', self.receiver)
         yag.send(
             to = self.receiver,
             subject = self.subject,
             contents = self.body
         )
+        print('Mail sent to ', self.receiver)
 
 class QM(object):
     """
@@ -333,7 +336,11 @@ class QM(object):
         self.config = ConfigParser()
         with open(configfile) as F:
             self.config.read_file(F)
-        self.QM_FOLDER = self.config.get("QMServer", "QM_FOLDER")
+        # self.QM_FOLDER = self.config.get("QMServer", "QM_FOLDER")
+
+        # In priori, load QM_FOLDER path from environment variables. If it does not exist, load it from config file
+        self.QM_FOLDER = os.environ.get('QM_FOLDER', self.config.get("QMServer", "QM_FOLDER"))
+
         self.MaxNbProcessors = int(self.config.get("QMServer", "MaxNbProcessors"))
         print ("MaxNbProcessors",self.MaxNbProcessors)
         self.launch_type = self.config.get("QMServer", "launch_type")
@@ -425,6 +432,7 @@ class QM(object):
         method that deals with moving job to do around and running  job.script 
         loanch in blocking or non-blocking mode depending on global flag
         """
+        print("=========== Start job {} ===========".format(job.name))
         if debug:
             print ('QM [%s] Starting job "%s" by %s'%(datetime.now().isoformat(timespec='seconds'), job.name, job.e_mail))
             print ('job.nb_proc ', job.nb_proc)
@@ -491,20 +499,18 @@ Virtually yours,
 The QueueManager
 """.format(job.name, job.time(), to_dJobs, job.info )
             try:
-                # mail = Email(address, subject, to_mail )
                 mail = Email(config=self.config, receiver=address, body= to_mail, subject=subject)
                 mail.sendMail()
             except:
                 logging.error("Mail to %s could not be sent"%address)
         logging.info('Finished job "%s" with code %d'%(job.name, job.retcode))
+        print('=========== Finished job "%s" with code %d ==========='%(job.name, job.retcode))
         self.running_jobs.remove(job)
 
 if  __name__ == '__main__':
     
     start_logger()
     q =  QM("QMserv.cfg")
-    # if q.mailactive:
-    #     from sendgmail import mail               # otherwise, copy it here
     queue_jobs = job_list(q.qJobs, q.dJobs)
     # print listing
     if q.debug:
