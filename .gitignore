@@ -12,3 +12,4 @@ app/
 app_run.py
 QueueManager.old.py
 .vscode/
+entrypoint.sh
