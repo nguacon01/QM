@@ -13,3 +13,5 @@ app_run.py
 QueueManager.old.py
 .vscode/
 entrypoint.sh
+QM_run.sh
+nohup.out
