@@ -227,14 +227,14 @@ class Job(object):
         logfile.flush()
         Script = self.script.split()  # "python"
         if True:
-            preexec_fn = None
-            if self.username is not None:
-                user_uid = pwd.getpwnam(str(self.username)).pw_uid
-                user_gid = pwd.getpwnam(str(self.username)).pw_gid
-                print("user_uid:", user_uid, file=logfile)
-                preexec_fn = self.demote(user_uid, user_gid)
             # run sub process as not root username which is declared in proc_config.cfg file
             try:
+                preexec_fn = None
+                if self.username is not None:
+                    user_uid = pwd.getpwnam(str(self.username)).pw_uid
+                    user_gid = pwd.getpwnam(str(self.username)).pw_gid
+                    print("user_uid:", user_uid, file=logfile)
+                    preexec_fn = self.demote(user_uid, user_gid)
                 p1 = subprocess.Popen(
                     Script, stdout=logfile, stderr=subprocess.STDOUT, preexec_fn=preexec_fn)
                 ok = True
