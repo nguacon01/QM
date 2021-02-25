@@ -207,21 +207,36 @@ class Job(object):
         if True:
             preexec_fn=None
             if self.username is not None:
-                user_uid = pwd.getpwnam(str(self.username)).pw_uid
-                user_gid = pwd.getpwnam(str(self.username)).pw_gid
-                print("user_uid:", user_uid, file=logfile)
-                preexec_fn=self.demote(user_uid, user_gid)
+                try:
+                    user_uid = pwd.getpwnam(str(self.username)).pw_uid
+                    user_gid = pwd.getpwnam(str(self.username)).pw_gid
+                    print("user_uid:", user_uid, file=logfile)
+                    preexec_fn=self.demote(user_uid, user_gid)
+                except:
+                    print ("username {} does not exist".format(self.username), file=logfile)
+                    self.retcode=-1
+                    print ("Job finished at: %s with code %d"%(datetime.now().isoformat(timespec='seconds'), self.retcode), file=logfile)
+                    return self.retcode
             # run sub process as not root username which is declared in proc_config.cfg file
-            try:
-                p1 = subprocess.Popen(Script, stdout=logfile, stderr=subprocess.STDOUT, preexec_fn=preexec_fn)
-                ok = True
-            except:
-                ok = False
-                print('Script could not be run, aborted', file=logfile)
+            ok = True
+            p1 = subprocess.Popen(Script, stdout=logfile, stderr=subprocess.STDOUT, preexec_fn=preexec_fn)
+            self.retcode = p1.returncode
+            if self.retcode != 0 and self.retcode != None:
                 self.retcode = -1
+                ok=False
+                print ("OK is False, Job finished at: %s with code %d"%(datetime.now().isoformat(timespec='seconds'), self.retcode), file=logfile)
+
+            # try:
+            #     p1 = subprocess.Popen(Script, stdout=logfile, stderr=subprocess.STDOUT, preexec_fn=preexec_fn)
+            #     ok = True
+            # except:
+            #     ok = False
+            #     print('Script could not be run, aborted', file=logfile)
+            #     self.retcode = -1
             while ok:
                 self.retcode = p1.poll()
                 if self.retcode is None:
+                    print(p1.communicate()[0], file=logfile)
                     time.sleep(1.0)
                 else:
                     print ("Job finished at: %s with code %d"%(datetime.now().isoformat(timespec='seconds'), self.retcode), file=logfile)
